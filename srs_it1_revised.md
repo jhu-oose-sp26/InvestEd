@@ -1,5 +1,4 @@
-# Software Requirement Specification
-## Name: InvestEd
+# Software Requirement Specification: InvestEd
 
 ## Problem Statement
 
