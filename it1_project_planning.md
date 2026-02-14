@@ -63,10 +63,12 @@
 - Add/update holding
 - Record transaction
 - Return updated portfolio snapshot
+- Add transaction locking in the database (in case of delayed transactions)
 
 ### Edge Cases
 - Insufficient funds
 - Buying fractional shares (decide yes/no)
+- Going into "short" (decide yes/no)
 - Extremely small orders
 - API price delay
 
