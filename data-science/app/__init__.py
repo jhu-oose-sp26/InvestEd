@@ -1,2 +1,0 @@
-# InvestEd Data Science Package
-

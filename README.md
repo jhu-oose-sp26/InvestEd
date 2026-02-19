@@ -1,329 +1,200 @@
 # InvestEd - Mock Trading Platform
 
-A scalable full-stack mock trading platform designed to grow from simple manual trading to AI-driven strategy execution.
-
-
-
-The project is organized into three main components:
-
-1. **Frontend** (`/frontend`) - Next.js application with Tailwind CSS and Shadcn UI
-2. **Backend** (`/backend`) - Node.js/TypeScript API server with Fastify
-3. **Data Science** (`/data-science`) - Python FastAPI service for analytics and strategy processing
-
+A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
 ## Tech Stack
 
-### Frontend
-- **Framework**: Next.js 14 (App Router)
-- **Styling**: Tailwind CSS
-- **UI Components**: Shadcn UI
-- **Icons**: Lucide React
-- **Language**: TypeScript
-
-### Backend (API & WebSocket)
-- **Runtime**: Node.js with TypeScript
-- **Framework**: Fastify
+- **Frontend**: Next.js 14 (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
+- **Backend**: Node.js with TypeScript, service-oriented architecture
 - **Database**: PostgreSQL with Prisma ORM
-- **WebSocket**: @fastify/websocket for real-time market data
-
-### Backend (Data Science)
-- **Framework**: FastAPI (Python)
-- **Analytics**: Pandas, NumPy, Scikit-learn
-- **Purpose**: Strategy processing, backtesting, and analytics
-
-### Database
-- **PostgreSQL** - Manages complex relationships between users, groups, and trades
-- **Prisma** - Type-safe database access and migrations
+- **Market Data**: Finnhub API (easily swappable for other providers)
 
 ## Project Structure
 
 ```
-OOPs/
-├── frontend/                 # Next.js frontend application
-│   ├── app/                  # Next.js App Router pages
-│   ├── components/           # React components
-│   │   ├── ui/              # Shadcn UI components
-│   │   └── features/        # Feature-specific components
-│   ├── hooks/               # Custom React hooks
-│   ├── lib/                 # Utilities and services
-│   │   ├── services/        # API client and business logic
-│   │   └── utils/           # Helper functions
-│   └── public/              # Static assets
-│
-├── backend/                  # Node.js API server
-│   ├── src/
-│   │   ├── services/        # Business logic
-│   │   │   ├── MarketService.ts      # Market data abstraction
-│   │   │   ├── TradeEngine.ts        # Atomic trade execution
-│   │   │   └── PortfolioService.ts   # Portfolio calculations
-│   │   ├── controllers/     # Request handlers
-│   │   ├── routes/          # Route definitions
-│   │   ├── middleware/      # Express/Fastify middleware
-│   │   ├── types/           # TypeScript type definitions
-│   │   └── utils/           # Utility functions
-│   └── prisma/              # Database schema and migrations
-│       └── schema.prisma    # Prisma schema definition
-│
-└── data-science/             # Python FastAPI service
-    ├── app/
-    │   ├── services/        # Strategy and analytics services
-    │   ├── models/          # Pydantic models
-    │   └── utils/           # Utility functions
-    └── tests/               # Test files
+InvestEd/
+├── prisma/                  # Database schema & migrations
+│   └── schema.prisma        # User, Trade, and Position models
+├── src/
+│   ├── app/                 # Next.js App Router (Routing & Layouts)
+│   │   ├── (dashboard)/     # Route group for authenticated user view
+│   │   │   ├── portfolio/   # Page to track total value and returns
+│   │   │   └── trade/       # Page for buying and selling assets
+│   │   └── api/             # Backend API routes (REST endpoints)
+│   ├── features/            # Domain-driven modules (Core Logic)
+│   │   ├── trading/         # Trade validation & execution engine
+│   │   ├── portfolio/       # P&L calculation & valuation logic
+│   │   └── market-data/     # API wrappers for Finnhub/Alpaca
+│   ├── components/          # Reusable UI primitives (Buttons, Inputs)
+│   ├── lib/                 # Utility toolkits (Prisma client, Axios config)
+│   └── hooks/               # Custom React hooks (e.g., useLivePrice)
+├── .env                     # Environment variables (API Keys, DB URL)
+└── package.json
 ```
-
-## Database Schema
-
-### Core Models
-
-- **User**: Stores user accounts with email and virtual balance
-- **Position**: Tracks owned assets (ticker, quantity, average entry price)
-- **Trade**: Immutable log of every BUY/SELL transaction (includes nullable `strategyId` for future AI strategies)
-- **Group**: For private friend-based leaderboards
-- **GroupMember**: Many-to-many relationship between users and groups
-
-See `backend/prisma/schema.prisma` for full schema definition.
-
-## Core Services
-
-### MarketService
-Abstracted market data provider supporting multiple APIs (Finnhub/Alpaca):
-- `fetchCurrentPrice(ticker)` - Get current price with caching
-- `subscribeToPriceTicks(ticker, callback)` - WebSocket subscription for real-time updates
-- Data staleness validation (prices must not be older than 60 seconds)
-
-### TradeEngine
-Atomic trade execution engine:
-- Ensures data integrity with database transactions
-- Validates sufficient balance/shares before execution
-- Updates user balance, positions, and trade log atomically
-
-### PortfolioService
-Portfolio performance calculations:
-- **Portfolio Value** = Cash + Σ(Holdings × CurrentPrice)
-- **Total Return** = (PortfolioValue - InitialBalance) / InitialBalance × 100
-- Leaderboard rankings based on percentage return (fair for different starting balances)
-
-
-
 
 ## Getting Started
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
+- Node.js 18+ and npm/yarn
+- PostgreSQL database
+- Finnhub API key (free tier available at [finnhub.io](https://finnhub.io))
 
-- **Node.js 18+** and npm/yarn
-- **Python 3.9+**
-- **PostgreSQL database** (running locally or remote)
-- **Market data API key** (Finnhub or Alpaca)
+### Installation
 
-### Quick Start Checklist
-
-- [ ] Node.js 18+ installed
-- [ ] Python 3.9+ installed
-- [ ] PostgreSQL database running
-- [ ] Market data API key obtained (Finnhub or Alpaca)
-
-### Setup Instructions
-
-#### 1. Database Setup
-
-First, set up the PostgreSQL database and run migrations:
+1. Clone the repository and install dependencies:
 
 ```bash
-cd backend
-
-# Create .env file (copy from .env.example if available)
-# Add your database connection string:
-# DATABASE_URL="postgresql://user:password@localhost:5432/invested?schema=public"
-
-# Install dependencies
 npm install
-
-# Generate Prisma Client
-npx prisma generate
-
-# Run database migrations
-npx prisma migrate dev --name init
 ```
 
-**Environment Variables for Backend** (`backend/.env`):
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/invested?schema=public"
-PORT=3001
-HOST=0.0.0.0
-FRONTEND_URL=http://localhost:3000
-MARKET_DATA_PROVIDER=finnhub
-FINNHUB_API_KEY=your_finnhub_api_key_here
-# OR for Alpaca:
-# MARKET_DATA_PROVIDER=alpaca
-# ALPACA_API_KEY=your_alpaca_api_key_here
-# ALPACA_API_SECRET=your_alpaca_api_secret_here
-```
-
-#### 2. Backend Setup
-
-Start the Node.js/TypeScript API server:
+2. Set up environment variables:
 
 ```bash
-cd backend
+cp .env.example .env
+```
 
-# Install dependencies (if not already done)
-npm install
+Edit `.env` and add your:
+- `DATABASE_URL`: PostgreSQL connection string
+- `FINNHUB_API_KEY`: Your Finnhub API key
 
-# Start development server
+3. Set up the database:
+
+```bash
+# Generate Prisma client
+npm run db:generate
+
+# Push schema to database (or use migrations for production)
+npm run db:push
+```
+
+4. Run the development server:
+
+```bash
 npm run dev
 ```
 
-The backend will run on `http://localhost:3001`
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-#### 3. Frontend Setup
+## Core Features
 
-Set up the Next.js frontend application:
+### Trading Engine (`TradeService.ts`)
+
+The `TradeService` implements atomic trade execution using Prisma transactions:
+
+- **Atomic Operations**: All trades are executed within database transactions to ensure data consistency
+- **Validation**: Checks for sufficient cash (BUY) or shares (SELL) before execution
+- **Position Management**: Automatically calculates weighted average buy price for positions
+- **Error Handling**: Comprehensive error messages for failed trades
+
+Example usage:
+
+```typescript
+import { tradeService } from '@/features/trading/TradeService'
+
+const result = await tradeService.executeTrade({
+  userId: 'user-123',
+  symbol: 'AAPL',
+  type: 'BUY',
+  quantity: 10,
+  price: 150.00
+})
+```
+
+### Market Data Provider (`MarketDataProvider.ts`)
+
+Abstract provider pattern allows easy swapping of market data sources:
+
+- **Finnhub Implementation**: Currently uses Finnhub REST API
+- **Extensible**: Easy to add Alpaca, Alpha Vantage, or other providers
+- **Error Handling**: Graceful handling of API failures
+
+### Portfolio Service (`PortfolioService.ts`)
+
+Calculates real-time portfolio valuation:
+
+- **Real-time Pricing**: Fetches current market prices
+- **P&L Calculation**: Unrealized profit/loss for each position
+- **Portfolio Summary**: Total value, invested amount, and returns
+
+## Database Schema
+
+### User
+- `id`: Unique identifier
+- `email`: User email (unique)
+- `cashBalance`: Available cash (Decimal, default $100,000)
+- `createdAt`, `updatedAt`: Timestamps
+
+### Trade
+- `id`: Unique identifier
+- `userId`: Foreign key to User
+- `symbol`: Stock ticker (e.g., "AAPL")
+- `type`: BUY or SELL
+- `quantity`: Number of shares
+- `price`: Price per share at execution
+- `totalValue`: Total trade value
+- `executedAt`: Timestamp
+
+### Position
+- `id`: Unique identifier
+- `userId`: Foreign key to User
+- `symbol`: Stock ticker
+- `quantity`: Current number of shares owned
+- `averageBuyPrice`: Weighted average purchase price
+- `updatedAt`: Last update timestamp
+
+## API Routes
+
+### POST `/api/trades`
+Execute a trade (BUY or SELL)
+
+Request body:
+```json
+{
+  "symbol": "AAPL",
+  "type": "BUY",
+  "quantity": 10
+}
+```
+
+### GET `/api/portfolio`
+Get portfolio summary with current valuations
+
+## Development
+
+### Database Commands
 
 ```bash
-cd frontend
+# Generate Prisma client after schema changes
+npm run db:generate
 
-# Create .env.local file with:
-# NEXT_PUBLIC_API_URL=http://localhost:3001
-# NEXT_PUBLIC_WS_URL=ws://localhost:3001
+# Push schema changes to database
+npm run db:push
 
-# Install dependencies
-npm install
+# Create and run migrations (for production)
+npm run db:migrate
 
-# Initialize Shadcn UI (optional but recommended)
-npx shadcn-ui@latest init
-npx shadcn-ui@latest add button card
-
-# Start development server
-npm run dev
+# Open Prisma Studio (database GUI)
+npm run db:studio
 ```
 
-The frontend will run on `http://localhost:3000`
+### Code Structure
 
-**Environment Variables for Frontend** (`frontend/.env.local`):
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_WS_URL=ws://localhost:3001
-```
+- **Features**: Domain-specific logic organized by feature (trading, portfolio, market-data)
+- **Services**: Business logic with database operations
+- **API Routes**: Next.js API endpoints that use services
+- **Components**: Reusable UI components (to be extended with Shadcn UI)
 
-#### 4. Data Science Backend Setup
+## Next Steps
 
-Set up the Python FastAPI service for analytics:
-
-```bash
-cd data-science
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file with:
-# API_HOST=0.0.0.0
-# API_PORT=8000
-# FRONTEND_URL=http://localhost:3000
-
-# Start FastAPI server
-uvicorn app.main:app --reload
-```
-
-The data science API will run on `http://localhost:8000`
-
-**Environment Variables for Data Science** (`data-science/.env`):
-```env
-API_HOST=0.0.0.0
-API_PORT=8000
-FRONTEND_URL=http://localhost:3000
-```
-
-### Verification
-
-After setting up all services, verify they're running correctly:
-
-1. **Backend API**: Visit `http://localhost:3001` - Should see Fastify server running
-2. **Frontend**: Visit `http://localhost:3000` - Should see InvestEd landing page
-3. **Data Science API**: Visit `http://localhost:8000/docs` - Should see FastAPI interactive documentation
-
-### Troubleshooting
-
-#### Prisma Connection Error
-- Check `DATABASE_URL` in `backend/.env`
-- Ensure PostgreSQL is running: `pg_isready` or check service status
-- Verify database exists: `createdb invested` (if using local PostgreSQL)
-- Test connection: `psql $DATABASE_URL`
-
-#### Port Already in Use
-- Change `PORT` in respective `.env` files
-- Kill process using port:
-  ```bash
-  # macOS/Linux
-  lsof -ti:3001 | xargs kill
-  # Windows
-  netstat -ano | findstr :3001
-  taskkill /PID <PID> /F
-  ```
-
-#### Module Not Found Errors
-- Run `npm install` in the respective directory
-- Check Node.js version: `node --version` (should be 18+)
-- For Python: Ensure virtual environment is activated and run `pip install -r requirements.txt`
-
-#### Shadcn UI Initialization Issues
-- Ensure you're in the `frontend` directory
-- Run `npx shadcn-ui@latest init` to set up configuration
-- Check `tailwind.config.ts` and `components.json` are created
-
-### Next Steps After Setup
-
-1. **Implement MarketService provider** (Finnhub or Alpaca)
-2. **Implement TradeEngine atomic transactions**
-3. **Implement PortfolioService calculations**
-4. **Connect frontend to backend APIs**
-5. **Add authentication/authorization**
-6. **Implement WebSocket for real-time data** (optional for MVP)
-
-## Key Design Decisions
-
-### Scalability Considerations
-
-1. **Data Refresh Strategy**: For MVP, REST polling every 10-30 seconds is recommended over managing many WebSocket connections. WebSocket support is built but can be enabled incrementally.
-
-2. **Database Integrity**: The schema includes `strategyId` in the Trade table (nullable) to track manual vs. AI-generated trades without future schema changes.
-
-3. **Leaderboard Fairness**: Rankings are based on **percentage return** rather than total equity, ensuring fairness for users with different starting balances or join dates.
-
-4. **Market Data Abstraction**: The `MarketService` uses a strategy pattern, allowing easy switching between providers (Finnhub/Alpaca) without changing business logic.
-
-5. **Atomic Transactions**: All trade operations use database transactions to ensure consistency between balance, positions, and trade logs.
-
-## Non-Functional Requirements
-
-- **Data Staleness**: Market prices must not be older than 60 seconds
-- **API-First Approach**: Use official APIs (Finnhub/Alpaca) - avoid web scraping
-- **Transaction Integrity**: All trades must be atomic (all-or-nothing)
-
-## Future Enhancements
-
-- AI strategy processing (convert plain English to executable code)
-- Advanced backtesting engine
-- Real-time WebSocket market data (when needed)
-- Risk analysis and position sizing
-- Paper trading with real market data
-
-## Development Status
-
-⚠️ **This is a skeleton project** - Most implementation is marked with TODO comments. The structure, schema, and service interfaces are defined, but business logic needs to be implemented.
+1. **Authentication**: Implement user authentication (NextAuth.js recommended)
+2. **Shadcn UI Components**: Add more UI components from Shadcn UI library
+3. **Real-time Updates**: Add WebSocket support for live price updates
+4. **Testing**: Add unit and integration tests
+5. **Error Boundaries**: Add React error boundaries for better error handling
+6. **Type Safety**: Enhance TypeScript types and validation
 
 ## License
 
-[Add your license here]
+MIT
 

@@ -1,0 +1,64 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  cashBalance  Decimal   @default(100000.00) @db.Decimal(15, 2) // Starting with $100,000 virtual cash
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  trades       Trade[]
+  positions    Position[]
+
+  @@map("users")
+}
+
+model Trade {
+  id            String    @id @default(cuid())
+  userId        String
+  symbol        String    // Stock ticker symbol (e.g., "AAPL")
+  type          TradeType // BUY or SELL
+  quantity      Int       // Number of shares
+  price         Decimal   @db.Decimal(15, 2) // Price per share at execution
+  totalValue    Decimal   @db.Decimal(15, 2) // quantity * price
+  executedAt    DateTime  @default(now())
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([executedAt])
+  @@map("trades")
+}
+
+model Position {
+  id              String   @id @default(cuid())
+  userId          String
+  symbol          String   // Stock ticker symbol
+  quantity        Int      @default(0) // Current number of shares owned
+  averageBuyPrice Decimal  @db.Decimal(15, 2) // Weighted average purchase price
+  updatedAt       DateTime @updatedAt
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol]) // One position per user per symbol
+  @@index([userId])
+  @@map("positions")
+}
+
+enum TradeType {
+  BUY
+  SELL
+}
+

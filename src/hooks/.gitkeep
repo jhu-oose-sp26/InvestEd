@@ -1,0 +1,7 @@
+# Custom React Hooks
+
+This directory will contain custom React hooks such as:
+- `useLivePrice.ts` - Hook for subscribing to real-time price updates
+- `usePortfolio.ts` - Hook for managing portfolio state
+- `useTrade.ts` - Hook for trade execution
+
