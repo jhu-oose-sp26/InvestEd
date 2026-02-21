@@ -20,9 +20,9 @@ Our `docker-compose.yaml` reads database credentials from a `.env` file in the p
 ### `.env` file format
 
 ```env
-POSTGRES_USER=oops_db
+POSTGRES_USER=admin
 POSTGRES_PASSWORD=your_password_here
-POSTGRES_DB=rx_formulary
+POSTGRES_DB=oops_db
 
 DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}?schema=public"
 ```
