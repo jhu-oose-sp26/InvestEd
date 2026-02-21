@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { Decimal } from '@prisma/client/runtime/library'
 import { z } from 'zod'
+import type { ExecuteTradeInput, TradeResult } from '@/types'
+
+// Re-export types for backward compatibility
+export type { ExecuteTradeInput, TradeResult } from '@/types'
 
 // Validation schemas
 const ExecuteTradeSchema = z.object({
@@ -10,16 +14,6 @@ const ExecuteTradeSchema = z.object({
   quantity: z.number().int().positive(),
   price: z.number().positive(),
 })
-
-export type ExecuteTradeInput = z.infer<typeof ExecuteTradeSchema>
-
-export interface TradeResult {
-  success: boolean
-  tradeId?: string
-  error?: string
-  newCashBalance?: Decimal
-  positionQuantity?: number
-}
 
 /**
  * TradeService handles atomic trade execution with database transactions

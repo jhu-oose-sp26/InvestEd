@@ -1,15 +1,8 @@
 import axios, { AxiosInstance } from 'axios'
+import type { Quote, MarketDataProvider } from '@/types'
 
-export interface Quote {
-  symbol: string
-  price: number
-  timestamp: number
-}
-
-export interface MarketDataProvider {
-  getQuote(symbol: string): Promise<Quote>
-  getQuotes(symbols: string[]): Promise<Quote[]>
-}
+// Re-export types for backward compatibility
+export type { Quote, MarketDataProvider } from '@/types'
 
 /**
  * MarketDataProvider abstract class that can be swapped for different providers

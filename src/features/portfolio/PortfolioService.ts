@@ -1,27 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { getMarketDataProvider } from '../market-data/MarketDataProvider'
 import { Decimal } from '@prisma/client/runtime/library'
+import type { PositionValue, PortfolioSummary } from '@/types'
 
-export interface PositionValue {
-  symbol: string
-  quantity: number
-  averageBuyPrice: number
-  currentPrice: number
-  totalCost: number
-  currentValue: number
-  unrealizedPnL: number
-  unrealizedPnLPercent: number
-}
-
-export interface PortfolioSummary {
-  totalCash: number
-  totalInvested: number
-  totalCurrentValue: number
-  totalPortfolioValue: number
-  totalUnrealizedPnL: number
-  totalUnrealizedPnLPercent: number
-  positions: PositionValue[]
-}
+// Re-export types for backward compatibility
+export type { PositionValue, PortfolioSummary } from '@/types'
 
 /**
  * PortfolioService handles portfolio valuation and P&L calculations

@@ -1,0 +1,20 @@
+export interface PositionValue {
+    symbol: string
+    quantity: number
+    averageBuyPrice: number
+    currentPrice: number
+    totalCost: number
+    currentValue: number
+    unrealizedPnL: number
+    unrealizedPnLPercent: number
+}
+
+export interface PortfolioSummary {
+    totalCash: number
+    totalInvested: number
+    totalCurrentValue: number
+    totalPortfolioValue: number
+    totalUnrealizedPnL: number
+    totalUnrealizedPnLPercent: number
+    positions: PositionValue[]
+}
