@@ -15,8 +15,10 @@ InvestEd/
 │   │   ├── api/                    # API routes
 │   │   │   ├── trades/
 │   │   │   │   └── route.ts        # POST /api/trades - Execute trade
-│   │   │   └── portfolio/
-│   │   │       └── route.ts        # GET /api/portfolio - Get portfolio summary
+│   │   │   ├── portfolio/
+│   │   │   │   └── route.ts        # GET /api/portfolio - Get portfolio summary
+│   │   │   └── quote/
+│   │   │       └── route.ts        # GET /api/quote - Get latest stored quote
 │   │   ├── layout.tsx              # Root layout
 │   │   ├── page.tsx                # Home page
 │   │   └── globals.css             # Global styles with Tailwind
@@ -26,7 +28,7 @@ InvestEd/
 │   │   ├── portfolio/
 │   │   │   └── PortfolioService.ts # Portfolio valuation & P&L calculation
 │   │   └── market-data/
-│   │       └── MarketDataProvider.ts # Abstract provider for market data (Finnhub)
+│   │       └── MarketDataProvider.ts # Market data provider (Postgres source)
 │   ├── components/                 # Reusable UI components
 │   │   └── ui/
 │   │       └── button.tsx          # Button component (Shadcn UI style)
@@ -36,6 +38,12 @@ InvestEd/
 │   └── hooks/                      # Custom React hooks
 │       └── (placeholder for future hooks like useLivePrice)
 ├── .env.example                    # Environment variables template
+├── market_data_pipeline/           # S3 to Postgres ingestion scripts
+│   ├── s3_to_postgres.py           # Loads OHLCV CSV from S3 into market_prices
+│   ├── .env.s3.example             # Team template for local AWS/S3 env
+│   └── README.md                   # Pipeline setup and run instructions
+├── tests/
+│   └── fetch-price-api.test.mjs    # API test for GET /api/quote
 ├── .gitignore                      # Git ignore rules
 ├── next.config.js                  # Next.js configuration
 ├── package.json                    # Dependencies and scripts
@@ -51,7 +59,7 @@ InvestEd/
 ### Core Services
 - **TradeService.ts**: Handles atomic trade execution with database transactions
 - **PortfolioService.ts**: Calculates portfolio value and P&L
-- **MarketDataProvider.ts**: Abstract interface for market data providers (Finnhub implementation)
+- **MarketDataProvider.ts**: Market data provider reading latest prices from Postgres
 
 ### Database
 - **schema.prisma**: Defines User, Trade, and Position models with relationships
@@ -59,9 +67,9 @@ InvestEd/
 ### API Routes
 - **/api/trades**: POST endpoint for executing trades
 - **/api/portfolio**: GET endpoint for portfolio summary
+- **/api/quote**: GET endpoint for latest stored quote by symbol
 
 ### Pages
 - **/**: Home page with navigation
 - **/trade**: Trade execution interface
 - **/portfolio**: Portfolio overview with positions and P&L
-

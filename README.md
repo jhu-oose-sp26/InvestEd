@@ -7,7 +7,7 @@ A scalable mock trading platform for JHU students to practice trading skills in 
 - **Frontend**: Next.js 14 (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
 - **Backend**: Node.js with TypeScript, service-oriented architecture
 - **Database**: PostgreSQL with Prisma ORM
-- **Market Data**: Finnhub API (easily swappable for other providers)
+- **Market Data**: PostgreSQL-backed historical price store (single source)
 
 ## Project Structure
 
@@ -24,7 +24,7 @@ InvestEd/
 │   ├── features/            # Domain-driven modules (Core Logic)
 │   │   ├── trading/         # Trade validation & execution engine
 │   │   ├── portfolio/       # P&L calculation & valuation logic
-│   │   └── market-data/     # API wrappers for Finnhub/Alpaca
+│   │   └── market-data/     # Market data access layer (Postgres)
 │   ├── components/          # Reusable UI primitives (Buttons, Inputs)
 │   ├── lib/                 # Utility toolkits (Prisma client, Axios config)
 │   └── hooks/               # Custom React hooks (e.g., useLivePrice)
@@ -37,8 +37,8 @@ InvestEd/
 ### Prerequisites
 
 - Node.js 18+ and npm/yarn
-- PostgreSQL database
-- Finnhub API key (free tier available at [finnhub.io](https://finnhub.io))
+- Docker Desktop (recommended for local Postgres)
+- Python 3.10+ (for S3 ingestion script)
 
 ### Installation
 
@@ -56,9 +56,19 @@ cp .env.example .env
 
 Edit `.env` and add your:
 - `DATABASE_URL`: PostgreSQL connection string
-- `FINNHUB_API_KEY`: Your Finnhub API key
+and ensure DB credentials match:
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_DB`
 
-3. Set up the database:
+3. Start Postgres:
+
+```bash
+docker compose up -d
+docker compose logs -f db
+```
+
+4. Set up the database schema:
 
 ```bash
 # Generate Prisma client
@@ -68,7 +78,27 @@ npm run db:generate
 npm run db:push
 ```
 
-4. Run the development server:
+5. Seed the placeholder API user (current routes use `temp-user-id`):
+
+```bash
+psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_DB>" \
+  -c "INSERT INTO users (id,email,name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+```
+
+6. Load market prices from S3:
+
+```bash
+cp market_data_pipeline/.env.s3.example market_data_pipeline/.env.s3
+# Edit .env with your DB values (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DATABASE_URL)
+# Edit market_data_pipeline/.env.s3 with your AWS values (AWS_PROFILE or keys, AWS_REGION, S3_BUCKET, S3_PREFIX)
+set -a
+source .env
+source market_data_pipeline/.env.s3
+set +a
+python3 market_data_pipeline/s3_to_postgres.py --bucket "$S3_BUCKET" --prefix "$S3_PREFIX" --region "$AWS_REGION"
+```
+
+7. Run the development server:
 
 ```bash
 npm run dev
@@ -103,17 +133,13 @@ const result = await tradeService.executeTrade({
 
 ### Market Data Provider (`MarketDataProvider.ts`)
 
-Abstract provider pattern allows easy swapping of market data sources:
-
-- **Finnhub Implementation**: Currently uses Finnhub REST API
-- **Extensible**: Easy to add Alpaca, Alpha Vantage, or other providers
-- **Error Handling**: Graceful handling of API failures
+Reads latest stored prices per symbol from Postgres (`market_prices`).
 
 ### Portfolio Service (`PortfolioService.ts`)
 
-Calculates real-time portfolio valuation:
+Calculates portfolio valuation from latest stored prices:
 
-- **Real-time Pricing**: Fetches current market prices
+- **Latest Stored Pricing**: Fetches latest stored market prices per symbol
 - **P&L Calculation**: Unrealized profit/loss for each position
 - **Portfolio Summary**: Total value, invested amount, and returns
 
@@ -143,6 +169,15 @@ Calculates real-time portfolio valuation:
 - `averageBuyPrice`: Weighted average purchase price
 - `updatedAt`: Last update timestamp
 
+### MarketPrice
+- `symbol`: Stock ticker
+- `asOfDate`: Trading date
+- `open`: Stored open price from your historical pipeline
+- `high`: Stored high price from your historical pipeline
+- `low`: Stored low price from your historical pipeline
+- `close`: Stored close price from your historical pipeline
+- `volume`: Optional volume
+
 ## API Routes
 
 ### POST `/api/trades`
@@ -159,6 +194,9 @@ Request body:
 
 ### GET `/api/portfolio`
 Get portfolio summary with current valuations
+
+### GET `/api/quote?symbol=AAPL`
+Get latest stored quote (mapped from latest close in `market_prices`)
 
 ## Development
 
@@ -178,6 +216,19 @@ npm run db:migrate
 npm run db:studio
 ```
 
+### Market Data Ingestion
+
+Use the S3-to-Postgres loader to populate `market_prices`:
+
+```bash
+python3 market_data_pipeline/s3_to_postgres.py \
+  --bucket your-bucket-name \
+  --prefix historical/daily/ \
+  --region us-east-2
+```
+
+For details and dry-run examples, see `market_data_pipeline/README.md`.
+
 ### Code Structure
 
 - **Features**: Domain-specific logic organized by feature (trading, portfolio, market-data)
@@ -189,7 +240,7 @@ npm run db:studio
 
 1. **Authentication**: Implement user authentication (NextAuth.js recommended)
 2. **Shadcn UI Components**: Add more UI components from Shadcn UI library
-3. **Real-time Updates**: Add WebSocket support for live price updates
+3. **Historical Data Pipeline**: Automate ingest from S3 into `market_prices`
 4. **Testing**: Add unit and integration tests
 5. **Error Boundaries**: Add React error boundaries for better error handling
 6. **Type Safety**: Enhance TypeScript types and validation
@@ -197,4 +248,3 @@ npm run db:studio
 ## License
 
 MIT
-

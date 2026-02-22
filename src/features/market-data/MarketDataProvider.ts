@@ -1,103 +1,67 @@
-import axios, { AxiosInstance } from 'axios'
+import { prisma } from '@/lib/prisma'
 import type { Quote, MarketDataProvider } from '@/types'
 
 // Re-export types for backward compatibility
 export type { Quote, MarketDataProvider } from '@/types'
 
 /**
- * MarketDataProvider abstract class that can be swapped for different providers
- * Currently implements Finnhub, but can be extended for Alpaca, Alpha Vantage, etc.
+ * Postgres-backed market data provider.
+ * Uses the latest stored OHLCV row in `market_prices` for each symbol.
+ * Quote requests currently map to the latest close.
  */
-export abstract class BaseMarketDataProvider implements MarketDataProvider {
-  protected apiKey: string
-  protected baseURL: string
-  protected client: AxiosInstance
-
-  constructor(apiKey: string, baseURL: string) {
-    this.apiKey = apiKey
-    this.baseURL = baseURL
-    this.client = axios.create({
-      baseURL,
-      timeout: 10000,
-    })
-  }
-
-  abstract getQuote(symbol: string): Promise<Quote>
-  abstract getQuotes(symbols: string[]): Promise<Quote[]>
-}
-
-/**
- * Finnhub Market Data Provider
- * Implements REST API integration with Finnhub for real-time and historical market data
- */
-export class FinnhubProvider extends BaseMarketDataProvider {
-  constructor(apiKey: string) {
-    super(apiKey, 'https://finnhub.io/api/v1')
-  }
-
-  /**
-   * Get real-time quote for a single symbol
-   * @param symbol - Stock ticker symbol (e.g., "AAPL")
-   */
+export class PostgresMarketDataProvider implements MarketDataProvider {
   async getQuote(symbol: string): Promise<Quote> {
-    try {
-      const response = await this.client.get('/quote', {
-        params: {
-          symbol: symbol.toUpperCase(),
-          token: this.apiKey,
-        },
-      })
+    const latestPrice = await prisma.marketPrice.findFirst({
+      where: { symbol: symbol },
+      orderBy: { asOfDate: 'desc' },
+      select: {
+        symbol: true,
+        close: true,
+        asOfDate: true,
+      },
+    })
 
-      const data = response.data
+    if (!latestPrice) {
+      throw new Error(`No market price available for symbol: ${symbol}`)
+    }
 
-      if (data.c === 0) {
-        throw new Error(`No data available for symbol: ${symbol}`)
-      }
-
-      return {
-        symbol: symbol.toUpperCase(),
-        price: data.c, // Current price
-        timestamp: data.t * 1000, // Convert Unix timestamp to milliseconds
-      }
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(
-          `Failed to fetch quote for ${symbol}: ${error.response?.statusText ?? error.message}`
-        )
-      }
-      throw error
+    return {
+      symbol: latestPrice.symbol,
+      price: latestPrice.close.toNumber(),
+      timestamp: latestPrice.asOfDate.getTime(),
     }
   }
 
-  /**
-   * Get real-time quotes for multiple symbols
-   * Note: Finnhub free tier has rate limits, so we fetch sequentially
-   * For production, consider batching or using WebSocket subscriptions
-   */
   async getQuotes(symbols: string[]): Promise<Quote[]> {
-    const quotes = await Promise.all(
-      symbols.map((symbol) => this.getQuote(symbol).catch((error) => {
-        console.error(`Error fetching quote for ${symbol}:`, error)
-        return null
-      }))
+    const latestBySymbol = await Promise.all(
+      symbols.map((symbol) =>
+        prisma.marketPrice.findFirst({
+          where: { symbol },
+          orderBy: { asOfDate: 'desc' },
+          select: {
+            symbol: true,
+            close: true,
+            asOfDate: true,
+          },
+        })
+      )
     )
 
-    return quotes.filter((quote): quote is Quote => quote !== null)
+    return latestBySymbol
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+      .map((row) => ({
+        symbol: row.symbol,
+        price: row.close.toNumber(),
+        timestamp: row.asOfDate.getTime(),
+      }))
   }
 }
 
 /**
- * Factory function to create market data provider based on environment
- * Makes it easy to swap providers without changing business logic
+ * Factory function for the single source of truth market data provider.
  */
 export function createMarketDataProvider(): MarketDataProvider {
-  const apiKey = process.env.FINNHUB_API_KEY
-
-  if (!apiKey) {
-    throw new Error('FINNHUB_API_KEY environment variable is not set')
-  }
-
-  return new FinnhubProvider(apiKey)
+  return new PostgresMarketDataProvider()
 }
 
 // Export singleton instance (lazy initialization)
@@ -109,4 +73,3 @@ export function getMarketDataProvider(): MarketDataProvider {
   }
   return marketDataProviderInstance
 }
-

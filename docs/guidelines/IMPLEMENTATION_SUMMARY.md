@@ -34,9 +34,8 @@
 **Key Function**: `executeTrade(input: ExecuteTradeInput)`
 
 ### 4. Market Data Provider (`MarketDataProvider.ts`)
-- ✅ **Abstract Base Class**: `BaseMarketDataProvider` for easy provider swapping
-- ✅ **Finnhub Implementation**: `FinnhubProvider` with REST API integration
-- ✅ **Factory Pattern**: `createMarketDataProvider()` for easy provider switching
+- ✅ **Postgres Implementation**: `PostgresMarketDataProvider` reads `market_prices`
+- ✅ **Factory Pattern**: `createMarketDataProvider()` uses the single configured source
 - ✅ **Methods**: `getQuote(symbol)` and `getQuotes(symbols[])`
 
 ### 5. Portfolio Service (`PortfolioService.ts`)
@@ -51,6 +50,7 @@
 - ✅ **API Routes**:
   - `POST /api/trades`: Execute trade
   - `GET /api/portfolio`: Get portfolio summary
+  - `GET /api/quote`: Fetch latest stored quote for a symbol
 
 ### 7. Configuration Files
 - ✅ `package.json`: All dependencies (Next.js, Prisma, Tailwind, etc.)
@@ -75,10 +75,9 @@ The `executeTrade` function ensures data consistency by:
 - Services are testable and reusable
 - Easy to extend with new features
 
-### Provider Pattern for Market Data
-- Abstract interface allows swapping providers
-- Currently implements Finnhub
-- Can easily add Alpaca, Alpha Vantage, etc.
+### Postgres Source for Market Data
+- Reads latest stored price for each symbol from database
+- Keeps trading and portfolio logic decoupled from ingestion pipeline
 
 ## 🔧 Next Steps (Not Implemented)
 
@@ -92,17 +91,20 @@ The `executeTrade` function ensures data consistency by:
 8. **Loading States**: Better loading indicators
 9. **Error Handling**: More robust error handling UI
 
+### 8. API Smoke Test
+- ✅ `npm run test:fetch-price-api` validates `GET /api/quote?symbol=AAPL`
+- ✅ Test asserts latest stored AAPL close price is returned and greater than 200
+
 ## 🚀 Getting Started
 
 1. Install dependencies: `npm install`
-2. Set up `.env` with `DATABASE_URL` and `FINNHUB_API_KEY`
+2. Set up `.env` with `DATABASE_URL`
 3. Run `npm run db:generate` and `npm run db:push`
 4. Start dev server: `npm run dev`
 
 ## 📝 Notes
 
 - User authentication is placeholder (`temp-user-id`) - needs implementation
-- Market data provider uses REST API (WebSocket support can be added)
+- Market data provider reads from `market_prices` in Postgres
 - All monetary values use Prisma `Decimal` type for precision
 - Database transactions ensure ACID compliance for trades
-

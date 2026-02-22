@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:fetch-price-api": "node --test tests/fetch-price-api.test.mjs",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
@@ -38,4 +39,3 @@
     "tailwindcss-animate": "^1.0.7"
   }
 }
-
