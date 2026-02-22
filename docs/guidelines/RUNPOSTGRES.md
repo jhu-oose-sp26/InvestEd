@@ -37,6 +37,9 @@ docker compose down        # stop and remove all services
 docker compose logs -f     # follow logs for all services
 ```
 
+If `docker compose up -d` fails with `bind: address already in use` on `5432`, another local service already uses that port.
+Either stop the local service, or change compose mapping to `5433:5432` and update `DATABASE_URL` accordingly.
+
 ## More Lightweight to Run a Container
 
 ```bash

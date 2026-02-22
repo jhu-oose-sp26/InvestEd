@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // For now, using a placeholder userId - replace with actual auth
     const userId = 'temp-user-id' // Replace with actual user ID from session
 
-    // Fetch current market price
+    // Fetch latest stored market price from Postgres
     const marketDataProvider = getMarketDataProvider()
     const quote = await marketDataProvider.getQuote(symbol)
     const price = quote.price
@@ -62,4 +62,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-
