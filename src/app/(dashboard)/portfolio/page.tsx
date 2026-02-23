@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts"
 
 interface PortfolioSummary {
   totalCash: number
@@ -68,6 +69,17 @@ export default function PortfolioPage() {
     return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`
   }
 
+  // Build pie chart data: Cash + positions by current value
+  const pieData = [
+    ...(portfolio.totalCash > 0 ? [{ name: "Cash", value: portfolio.totalCash }] : []),
+    ...portfolio.positions.map((p) => ({
+      name: p.symbol,
+      value: p.currentValue,
+    })),
+  ]
+
+  const CHART_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"]
+
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Portfolio</h1>
@@ -96,6 +108,40 @@ export default function PortfolioPage() {
             {formatCurrency(portfolio.totalUnrealizedPnL)} ({formatPercent(portfolio.totalUnrealizedPnLPercent)})
           </div>
         </div>
+      </div>
+
+      {/* Position Sizes Pie Chart */}
+      <div className="border rounded-lg p-4 mb-8">
+        <h2 className="text-xl font-semibold mb-4">Allocation</h2>
+        {pieData.length === 0 ? (
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
+            No allocation data yet
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={2}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(1)}%`}
+              >
+                {pieData.map((_, index) => (
+                  <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                contentStyle={{ borderRadius: "8px" }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* Positions Table */}
