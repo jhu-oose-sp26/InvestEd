@@ -191,11 +191,16 @@ def main() -> int:
         return 2
 
     requested_symbols = {s.upper() for s in args.symbol} if args.symbol else None
-    sources = (
-        iter_s3_objects(args.bucket, args.prefix, args.region)
-        if args.bucket
-        else iter_local_files(args.local_glob)
-    )
+    if args.bucket is not None:
+        if not args.bucket.strip():
+            print("S3_BUCKET is empty. Check your .env.s3 file and ensure you ran: source .env && source market_data_pipeline/.env.s3", file=sys.stderr)
+            return 2
+        sources = iter_s3_objects(args.bucket, args.prefix, args.region)
+    else:
+        if not args.local_glob:
+            print("Either --bucket or --local-glob is required.", file=sys.stderr)
+            return 2
+        sources = iter_local_files(args.local_glob)
 
     total_files = 0
     total_rows = 0
