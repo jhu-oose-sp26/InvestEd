@@ -1,180 +1,70 @@
-# Software Requirements Specification (SRS)
+# Software Requirement Specification: InvestEd
+
 
 ## Problem Statement
 
-Hopkins students who have just started investing their money often have no idea where to begin. While they could invest passively in treasury bonds or the S&P 500, students who want to develop trading strategies or achieve higher returns often find stock-picking articles and market news overwhelming. Additionally, beginners who attempt to trade actively risk losing money because they are competing against experienced traders, trading firms, and automated algorithms. This application will allow Hopkins students to practice trading skills and develop intuition in a low-stakes, risk-free environment.
-
----
+Many Hopkins students who are beginning to invest lack structured guidance on how to develop and evaluate trading strategies. While passive investing is accessible, students who want to actively understand markets often feel overwhelmed by financial news and technical jargon. Beginners who attempt real trading also face significant financial risk while competing against experienced and algorithmic traders, creating a high barrier to learning through experimentation. InvestEd addresses this by offering a simulated, low-risk trading environment where students can test strategies, analyze performance, and learn through engaging features like leaderboards, daily challenges, and social competition.
 
 ## Potential Clients
 
-- College students who have just started investing  
-- Students who want to learn more about investing  
-- Initially targeting Hopkins students  
+Primary Users: Undergraduate and graduate students at Johns Hopkins University who are new to investing or want structured practice.
+Secondary Users: College students at other universities seeking a competitive, simulation-based investing platform. Beginners interested in a fun, engaging and practical way to learn investing.
+Future Stakeholders: Finance clubs, professors teaching investment-related courses, and student organizations
 
----
+## Proposed Solution 
+Our proposed solution is InvestEd, a web-based simulated trading platform that combines real market data, friend-based and global leaderboards, performance tracking and portfolio manager. This platform enables students to practice manual simulated trading using real market data, test rule-based strategies, compare performance through structured ranking systems and compete within friend groups or campus-wide leaderboards. By focusing on strategy evaluation and structured competition, InvestEd creates a safe but engaging learning environment that encourages experimentation and disciplined investing.
 
-## Proposed Solution
+## Functional Requirements 
 
-The proposed solution is an interactive platform that helps students learn investing through simulated trading using historical data and mock money. Users can test their skills in a risk-free environment through daily challenges and compete with others on leaderboards. By combining analytics, AI assistance, and engaging features, the application helps users gradually build confidence and decision-making skills in a structured, low-pressure learning environment.
+### Must haves:
+- As a new or returning trader, I want to create an account and log in securely so that my simulated trades, progress, and strategies are saved and tied to me across sessions.
+- As a beginner investor, I want to buy and sell stocks using real market data with virtual money so that I can practice trading without financial risk.
+- As a user who wants to track improvement, I want to see my total portfolio value based on my simulated trades so that I can monitor performance and see how my decisions affect outcomes over time.
+- As a socially engaged user, I want to create or join private friend groups with separate leaderboards so that I can compete directly with people I know to make learning more engaging.
+- As a competitive user, I want to see global leaderboard ranking users by various performance metrics (such as total return percentage, annualized return, portfolio growth rate, etc.) so that rankings reward smart strategy.
+- As a user motivated by comparison, I want to see a leaderboard ranking users by performance so that I can benchmark my results against others.
+- As a socially engaged user, I want to invite friends and engage in educational competition.
 
----
+### Nice to have:
+- As a user who benefits from structure, I want to participate in daily trading challenges with predefined constraints (ex: tech stocks only, long-only, low-volatility strategy) so that I can explore focused learning goals.
+- As a user analyzing performance, I want to view historical charts and transaction logs so that I can reflect on my trading behavior and identify patterns.
+- As a user, I want a personalized “Stocks Wrapped” summary at the end of each semester or year so that I can see highlights of my trading activity, performance trends, and growth over time in a fun, engaging format.
+- As a user exploring investment opportunities, I want to swipe through stocks or options with brief insights so that I can quickly discover and shortlist assets.
+- As a user with trading ideas but little or no programming experience, I want to describe trading strategies in plain English so that I can test ideas without learning how to code.
+- As a user experimenting with strategy-based trading, I want my plain-English strategy to be automatically converted into executable code so that it can be tested rather than remaining theoretical.
 
-## Functional Requirements
+### Non-functional requirements:
 
-### Must Have
+- The system must support concurrent users without significant latency.
+- Strategy logic and portfolio data must be securely stored.
+- Users must have control over public vs. anonymous visibility.
+- Interface must be intuitive for first-time investors.
+- Portfolio dashboards and leaderboards must present information clearly without overwhelming financial jargon.
+- Market data must be accurate and consistent.
 
-- **Account Management**
-  - As a new or returning trader, I want to create an account and log in securely so that my simulated trades, progress, and strategies are saved and tied to me across sessions.
+## Software Architecture & Technology Stack 
 
-- **Simulated Trading**
-  - As someone learning how stock markets work, I want to simulate trading using historical market data with mock money so that I can practice strategies and understand market behavior without financial risk.
+###### Web-based (possibly mobile depending on time constraint) client-server system
 
-- **Portfolio Tracking**
-  - As a user who wants to track improvement, I want to see my total portfolio value based on my simulated trades so that I can monitor performance and see how my decisions affect outcomes over time.
+###### Frontend: 
+- Responsible for user interactions, account management, simulated trading interfaces, portfolio visualization, etc. 
+- Javascript React
+- Communicate with the backend using RESTful APIs.
 
-- **Educational Content**
-  - As a learner with limited time, I want access to short lessons and quick tips so that I can understand key trading concepts without needing extensive prior knowledge.
-
-- **Natural Language Strategy Input**
-  - As a user with trading ideas but little or no programming experience, I want to describe trading strategies in plain English so that I can test ideas without learning how to code.
-
-- **Strategy Translation**
-  - As a user experimenting with strategy-based trading, I want my plain-English strategy to be automatically converted into executable code so that it can be tested rather than remaining theoretical.
-
-- **Strategy Backtesting**
-  - As a user trying to evaluate a trading strategy, I want to run my strategy against real historical market data and receive performance metrics so that I can understand how effective the strategy would have been.
-
-- **Strategy Assessment**
-  - As a user looking to improve decision-making, I want to receive an assessment of my strategy so that I can identify weaknesses and refine my approach.
-
-- **Daily Challenges**
-  - As a user who benefits from structure, I want to participate in daily trading challenges so that I stay engaged and can test my skills in a time-bound, competitive format.
-
-- **Leaderboard**
-  - As a user motivated by comparison, I want to see a leaderboard ranking users by performance so that I can benchmark my results against others and compete on challenges.
-
----
-
-### Nice to Have
-
-- **Advanced Trading Simulation**
-  - As a more advanced or curious user, I want to simulate high-frequency or algorithmic trading strategies so that I can explore more complex trading techniques in a risk-free environment.
-
-- **AI Strategy Suggestions**
-  - As a user seeking guidance, I want personalized, AI-powered trade and strategy suggestions based on my activity and market data so that I can make more informed decisions.
-
-- **Social Features**
-  - As a socially engaged user, I want to invite friends and earn rewards so that I am incentivized to stay active and unlock additional features.
-
-- **Stock Discovery Interface**
-  - As a user exploring investment opportunities, I want to swipe through stocks or options with brief insights so that I can quickly discover and shortlist assets.
-
-- **Real-Time Data**
-  - As a user who wants to stay current with the market, I want access to real-time price data so that I can simulate trading against live market conditions.
-
----
-
-## Non-Functional Requirements
-
-- **Performance**
-  - As a user who frequently tests ideas, I want simulations and strategy tests to run quickly so that I receive immediate feedback and can iterate efficiently.
-
-- **Scalability & Reliability**
-  - As an active user, I want the app to remain responsive even during high traffic so that performance issues do not disrupt my experience.
-
-- **Security & Privacy**
-  - As a user who values privacy and trust, I want my personal data, strategies, and activity to be securely protected so that I feel confident using the platform.
-
-- **Usability**
-  - As a user new to trading tools, I want an intuitive and easy-to-navigate interface so that I can use the app effectively without feeling overwhelmed.
-
----
-
-## Software Architecture & Technology Stack
-
-### Application Type
-Web-based client-server system (with potential mobile support depending on time constraints).
-
----
-
-### Frontend
-
-**Responsibilities**
-- User interactions
-- Account management
-- Simulated trading interfaces
-- Portfolio visualization
-
-**Technologies**
-- JavaScript
-- React
-- RESTful API communication with backend
-
----
-
-### Backend
-
-**Responsibilities**
-- User authentication
-- Strategy processing
-- Trade simulation
-- Data management
-- AI-based strategy interpretation (natural language to trading logic)
-
-**Technologies**
-- Python
+###### Backend: 
+- Handles core application logic like user authentication, strategy processing, trade simulation, data management, etc using service-oriented architecture
+- Python (Good for data, analytics)
 - FastAPI
-- Service-oriented architecture
 
----
+###### Data:
+- Market data extracted from financial data APIs (Alpaca, Yahoo Finance, Finnhub, Alpha Vantage) and possible scraping 
+- Relational databases like PostgreSQL used to store user accounts, simulated trades and strategy metadata, etc for structured queries.
+- Encryption for sensitive data 
 
-### Data Layer
+###### Cloud-Based Infrastructure to allow for scaling and responsiveness for demand and traffic. 
 
-**Market Data**
-- Historical price data (OHLCV) for simulated trading
-- Financial data APIs
+## Similar Apps: 
 
-**Database**
-- PostgreSQL for storing:
-  - User accounts
-  - Simulated trades
-  - Strategy metadata
+- QuantConnect - allows users to define strategies and backtest them against historical market data. has the pipeline (plain english strategy -> python code -> historic data backtest) implemented. Difference: focuses on advanced users and offers a pipeline from strategy definition to code execution. Differs from our educational features targeting beginners. 
 
-**Security**
-- Encryption for sensitive data
-
----
-
-### Infrastructure
-
-- Cloud-based infrastructure to allow scalability and high availability
-
----
-
-## Similar Applications
-
-### QuantConnect
-- Allows users to define trading strategies and backtest them using historical market data.
-- Provides a pipeline from strategy definition to code execution.
-
-**Difference:**  
-Focuses on advanced users and lacks beginner-oriented educational features and simplified user experience.
-
----
-
-### Investopedia Simulator
-- Allows users to practice trading with virtual money using real market data.
-
-**Difference:**  
-Focuses primarily on manual trading and lacks automated backtesting, structured strategy testing, and AI-driven feedback.
-
----
-
-### Kalshi Demo
-- Provides a demo version of its trading/betting platform.
-
-**Difference:**  
-Lacks educational support and AI-driven feedback, and primarily focuses on trading functionality.
-
----
+- Investopedia Simulator - allows users to practice trading with virtual money using real market data. However, it focuses mainly on manual trading and lacks structured strategy testing, automated backtesting, or AI-driven feedback.
