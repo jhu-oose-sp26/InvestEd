@@ -72,6 +72,24 @@ model MarketPrice {
   @@map("market_prices")
 }
 
+model MarketPriceRealtime {
+  id        String   @id @default(cuid())
+  symbol    String
+  timestamp DateTime // Full timestamp for intraday precision
+  timeframe String   @default("1Min") // Bar interval: "1Min", "5Min", "15Min", etc.
+  open      Decimal  @db.Decimal(15, 6)
+  high      Decimal  @db.Decimal(15, 6)
+  low       Decimal  @db.Decimal(15, 6)
+  close     Decimal  @db.Decimal(15, 6)
+  volume    BigInt?
+  vwap      Decimal? @db.Decimal(15, 6) // Volume-weighted average price
+  tradeCount Int?    @map("trade_count")  // Number of trades in the bar
+
+  @@unique([symbol, timestamp, timeframe])
+  @@index([symbol, timestamp])
+  @@map("market_prices_realtime")
+}
+
 enum TradeType {
   BUY
   SELL
