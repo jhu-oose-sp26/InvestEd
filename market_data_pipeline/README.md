@@ -65,3 +65,31 @@ python3 market_data_pipeline/s3_to_postgres.py \
   --symbol AAPL \
   --symbol MSFT
 ```
+
+## Generate local report matchup data
+
+The quarterly report matchup APIs rely on locally generated files and these artifacts are intentionally not committed.
+
+If you do not already have the Python dependencies installed, create a local virtual environment and install them:
+
+```bash
+python3 -m venv market_data_pipeline/.venv
+market_data_pipeline/.venv/bin/pip install -r market_data_pipeline/requirements.txt
+```
+
+If your active Python environment already has the required packages, you can skip that setup and run the scripts with `python3`.
+
+From the repo root, run:
+
+```bash
+export FMP_API_KEY=your_fmp_key
+python3 market_data_pipeline/financial_stmts.py
+python3 market_data_pipeline/download_yfinance_prices.py
+python3 market_data_pipeline/build_report_matchup_data.py
+```
+
+This will create:
+- `mag7_fmp_financials/` with quarterly FMP statement files and the derived matchup JSON
+- `market_data_pipeline/yfinance_daily/` with downloaded daily price CSVs
+
+The APIs expect the derived dataset at `mag7_fmp_financials/_derived/quarterly_report_matchups.json`.
