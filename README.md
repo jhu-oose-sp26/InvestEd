@@ -198,6 +198,32 @@ Get portfolio summary with current valuations
 ### GET `/api/quote?symbol=AAPL`
 Get latest stored quote (mapped from latest close in `market_prices`)
 
+### Report Matchup APIs
+
+The report matchup endpoints read from a local generated dataset and do not ship with committed data files.
+
+Before using `GET /api/report-options` or `GET /api/report-matchup`, make sure your Python environment has the required packages.
+
+Recommended setup if you do not already have them:
+
+```bash
+python3 -m venv market_data_pipeline/.venv
+market_data_pipeline/.venv/bin/pip install -r market_data_pipeline/requirements.txt
+```
+
+If your current Python already has the dependencies installed, you can skip the venv and use `python3` directly.
+
+Then generate the required local artifacts:
+
+```bash
+export FMP_API_KEY=your_fmp_key
+python3 market_data_pipeline/financial_stmts.py
+python3 market_data_pipeline/download_yfinance_prices.py
+python3 market_data_pipeline/build_report_matchup_data.py
+```
+
+This creates local-only files under `mag7_fmp_financials/` and `market_data_pipeline/yfinance_daily/`.
+
 ## Development
 
 ### Database Commands
