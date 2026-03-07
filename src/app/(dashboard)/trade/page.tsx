@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useLivePrice } from "@/hooks/useLivePrice"
 
 export default function TradePage() {
   const [symbol, setSymbol] = useState("")
@@ -8,6 +9,8 @@ export default function TradePage() {
   const [tradeType, setTradeType] = useState<"BUY" | "SELL">("BUY")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
+  const { price: livePrice, loading: livePriceLoading, error: livePriceError } = useLivePrice(symbol, 5000)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,6 +62,13 @@ export default function TradePage() {
             className="w-full px-4 py-2 border rounded-md"
             required
           />
+          {symbol.trim() && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {livePriceLoading && "Loading price…"}
+              {livePriceError && !livePriceLoading && `Live price: ${livePriceError.slice(0, 50)}${livePriceError.length > 50 ? "…" : ""}`}
+              {livePrice != null && !livePriceLoading && `Live price: $${livePrice.toFixed(2)}`}
+            </p>
+          )}
         </div>
 
         <div>

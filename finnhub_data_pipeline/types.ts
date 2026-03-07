@@ -1,0 +1,43 @@
+/**
+ * Finnhub API types for real-time and quote data.
+ * Public types used by the app, API routes, hooks, and future graphs/UI.
+ * @see https://finnhub.io/docs/api
+ */
+
+// --- REST Quote API (GET /quote?symbol=AAPL) ---
+export interface FinnhubQuoteResponse {
+  c: number   // current price
+  d: number   // change
+  dp: number  // percent change
+  h: number   // high of day
+  l: number   // low of day
+  o: number   // open
+  pc: number  // previous close
+  t: number   // timestamp (UNIX seconds)
+}
+
+// --- WebSocket trade stream ---
+export interface FinnhubTradeItem {
+  s: string   // symbol
+  p: number   // price
+  t: number   // timestamp (ms)
+  v: number   // volume
+  c?: string[]
+}
+
+export interface FinnhubTradeMessage {
+  type: 'trade'
+  data: FinnhubTradeItem[]
+}
+
+/** Normalized live quote: use this in UI, graphs, and API responses */
+export interface FinnhubLiveQuote {
+  symbol: string
+  price: number
+  timestamp: number
+  volume?: number
+  /** Change from previous close (from REST; not in WS trade stream) */
+  change?: number
+  /** Percent change from previous close (from REST) */
+  percentChange?: number
+}

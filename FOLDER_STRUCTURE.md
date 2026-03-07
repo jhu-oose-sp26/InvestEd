@@ -7,7 +7,9 @@ InvestEd/
 ├── src/
 │   ├── app/                        # Next.js App Router
 │   │   ├── (dashboard)/            # Route group for authenticated views
-│   │   │   ├── layout.tsx          # Dashboard layout with navigation
+│   │   │   ├── layout.tsx          # Dashboard layout with nav + LiveMarketsStrip
+│   │   │   ├── markets/
+│   │   │   │   └── page.tsx        # Live markets table (real-time prices)
 │   │   │   ├── portfolio/
 │   │   │   │   └── page.tsx        # Portfolio page with P&L display
 │   │   │   └── trade/
@@ -17,8 +19,12 @@ InvestEd/
 │   │   │   │   └── route.ts        # POST /api/trades - Execute trade
 │   │   │   ├── portfolio/
 │   │   │   │   └── route.ts        # GET /api/portfolio - Get portfolio summary
-│   │   │   └── quote/
-│   │   │       └── route.ts        # GET /api/quote - Get latest stored quote
+│   │   │   ├── quote/
+│   │   │   │   └── route.ts        # GET /api/quote - Get latest stored quote
+│   │   │   ├── live-quote/
+│   │   │   │   └── route.ts        # GET /api/live-quote?symbol= - Finnhub single quote
+│   │   │   └── live-quotes/
+│   │   │       └── route.ts        # GET /api/live-quotes?symbols= - Finnhub multi (graphs)
 │   │   ├── layout.tsx              # Root layout
 │   │   ├── page.tsx                # Home page
 │   │   └── globals.css             # Global styles with Tailwind
@@ -36,8 +42,17 @@ InvestEd/
 │   │   ├── prisma.ts               # Prisma client singleton
 │   │   └── utils.ts                # Utility functions (cn helper)
 │   └── hooks/                      # Custom React hooks
-│       └── (placeholder for future hooks like useLivePrice)
+│       ├── useLivePrice.ts         # Single-symbol live price (trade page, tickers)
+│       └── useLiveQuotes.ts         # Multi-symbol (portfolio graphs, dashboards)
 ├── .env.example                    # Environment variables template
+├── finnhub_data_pipeline/          # Finnhub real-time (WebSocket + REST)
+│   ├── types.ts                    # Finnhub API types
+│   ├── finnhubRestClient.ts        # REST Quote client
+│   ├── finnhubWebSocketClient.ts   # WebSocket trade stream + cache
+│   ├── finnhubLiveQuoteService.ts  # getLiveQuote / getLiveQuotes
+│   ├── index.ts                    # Public API for app & graphs
+│   ├── REQUIREMENTS.md             # API key, WebSocket vs REST, where data is stored, UI (strip, Markets)
+│   └── README.md                   # Overview
 ├── market_data_pipeline/           # S3 to Postgres ingestion scripts
 │   ├── s3_to_postgres.py           # Loads OHLCV CSV from S3 into market_prices
 │   ├── .env.s3.example             # Team template for local AWS/S3 env
@@ -68,6 +83,8 @@ InvestEd/
 - **/api/trades**: POST endpoint for executing trades
 - **/api/portfolio**: GET endpoint for portfolio summary
 - **/api/quote**: GET endpoint for latest stored quote by symbol
+- **/api/live-quote**: GET ?symbol=AAPL – Finnhub real-time single quote
+- **/api/live-quotes**: GET ?symbols=AAPL,MSFT – Finnhub real-time multi (for graphs)
 
 ### Pages
 - **/**: Home page with navigation
