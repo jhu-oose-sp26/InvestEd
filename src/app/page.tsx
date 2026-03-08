@@ -8,7 +8,7 @@ export default function Home() {
         <p className="text-center text-lg mb-8 text-muted-foreground">
           Mock Trading Platform for JHU Students
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center flex-wrap">
           <Link
             href="/trade"
             className="px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
@@ -20,6 +20,12 @@ export default function Home() {
             className="px-6 py-3 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
           >
             View Portfolio
+          </Link>
+          <Link
+            href="/quiz"
+            className="px-6 py-3 border border-primary text-primary rounded-md hover:bg-primary/10 transition-colors"
+          >
+            Daily Challenge
           </Link>
         </div>
       </div>
