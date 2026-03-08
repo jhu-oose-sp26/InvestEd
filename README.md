@@ -224,6 +224,10 @@ python3 market_data_pipeline/build_report_matchup_data.py
 
 This creates local-only files under `mag7_fmp_financials/` and `market_data_pipeline/yfinance_daily/`.
 
+### Daily Challenge Quiz
+
+`GET /api/quiz/questions?date=YYYY-MM-DD` returns that day's quiz questions. The Daily Challenge uses the same dataset. See `docs/quiz-design.md` for details.
+
 ## Development
 
 ### Database Commands

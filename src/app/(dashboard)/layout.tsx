@@ -26,6 +26,12 @@ export default function DashboardLayout({
               >
                 Portfolio
               </Link>
+              <Link
+                href="/quiz"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
+                Daily Challenge
+              </Link>
             </div>
           </div>
         </div>
