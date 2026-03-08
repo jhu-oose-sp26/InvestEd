@@ -7,7 +7,7 @@ A scalable mock trading platform for JHU students to practice trading skills in 
 - **Frontend**: Next.js 14 (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
 - **Backend**: Node.js with TypeScript, service-oriented architecture
 - **Database**: PostgreSQL with Prisma ORM
-- **Market Data**: PostgreSQL-backed historical price store (single source)
+- **Market Data**: PostgreSQL-backed historical price store; real-time via Finnhub (see `finnhub_data_pipeline/`)
 
 ## Project Structure
 
@@ -15,9 +15,12 @@ A scalable mock trading platform for JHU students to practice trading skills in 
 InvestEd/
 ├── prisma/                  # Database schema & migrations
 │   └── schema.prisma        # User, Trade, and Position models
+├── finnhub_data_pipeline/   # Real-time quotes (Finnhub); for live UI, graphs, dashboards
+├── market_data_pipeline/    # S3 → Postgres historical loader (Python)
 ├── src/
 │   ├── app/                 # Next.js App Router (Routing & Layouts)
 │   │   ├── (dashboard)/     # Route group for authenticated user view
+│   │   │   ├── markets/     # Live markets table (real-time prices)
 │   │   │   ├── portfolio/   # Page to track total value and returns
 │   │   │   └── trade/       # Page for buying and selling assets
 │   │   └── api/             # Backend API routes (REST endpoints)
@@ -60,6 +63,9 @@ and ensure DB credentials match:
 - `POSTGRES_USER`
 - `POSTGRES_PASSWORD`
 - `POSTGRES_DB`
+
+Optional (real-time quotes, live strip, Markets page):
+- `FINNHUB_API_KEY` – [Finnhub Dashboard](https://finnhub.io/dashboard). See `finnhub_data_pipeline/REQUIREMENTS.md`.
 
 3. Start Postgres:
 
@@ -142,6 +148,16 @@ Calculates portfolio valuation from latest stored prices:
 - **Latest Stored Pricing**: Fetches latest stored market prices per symbol
 - **P&L Calculation**: Unrealized profit/loss for each position
 - **Portfolio Summary**: Total value, invested amount, and returns
+
+### Real-time data (Finnhub)
+
+When `FINNHUB_API_KEY` is set, the app shows live prices and changes:
+
+- **Live markets strip**: Ticker-style bar below the nav (Trade, Portfolio, Markets) with symbol, price, and change/% in green or red. Polls every 3s.
+- **Markets page** (`/markets`): Table of the same symbols with Symbol, Price, Change, % Change.
+- **Trade page**: Live price under the symbol input for the entered ticker.
+
+Data flow: server keeps one WebSocket to Finnhub and an in-memory cache; when the UI requests a quote, the app returns from cache or the REST Quote API. Change and percent change come from REST (WebSocket stream does not include them). Full details: `finnhub_data_pipeline/REQUIREMENTS.md` and `finnhub_data_pipeline/README.md`.
 
 ## Database Schema
 

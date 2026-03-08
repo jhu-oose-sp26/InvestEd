@@ -43,7 +43,7 @@ export class PortfolioService {
     }
 
     // Fetch current prices for all symbols
-    const symbols = positions.map((p) => p.symbol)
+    const symbols = positions.map((p: { symbol: string }) => p.symbol)
     const marketDataProvider = getMarketDataProvider()
     const quotes = await marketDataProvider.getQuotes(symbols)
 
@@ -51,7 +51,8 @@ export class PortfolioService {
     const priceMap = new Map(quotes.map((q) => [q.symbol, q.price]))
 
     // Calculate position values
-    const positionValues: PositionValue[] = positions.map((position) => {
+    type PositionRow = (typeof positions)[number]
+    const positionValues: PositionValue[] = positions.map((position: PositionRow) => {
       const currentPrice = priceMap.get(position.symbol) ?? position.averageBuyPrice.toNumber()
       const totalCost = position.averageBuyPrice.times(position.quantity).toNumber()
       const currentValue = currentPrice * position.quantity

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { LiveMarketsStrip } from "@/components/LiveMarketsStrip"
 
 export default function DashboardLayout({
   children,
@@ -14,6 +15,12 @@ export default function DashboardLayout({
               InvestEd
             </Link>
             <div className="flex gap-4">
+              <Link
+                href="/markets"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
+                Markets
+              </Link>
               <Link
                 href="/trade"
                 className="text-sm font-medium hover:text-primary transition-colors"
@@ -36,6 +43,7 @@ export default function DashboardLayout({
           </div>
         </div>
       </nav>
+      <LiveMarketsStrip />
       <main className="container mx-auto px-4 py-8">{children}</main>
     </div>
   )
