@@ -1,9 +1,15 @@
 /**
  * Finnhub REST Quote API client.
  * GET /quote?symbol=X – use for one-off fetches and fallback when WS cache is stale.
+ * GET /stock/profile2?symbol=X – company profile (sector/industry) for portfolio charts.
  */
 
-import type { FinnhubQuoteResponse, FinnhubLiveQuote } from './types'
+import type {
+  FinnhubQuoteResponse,
+  FinnhubLiveQuote,
+  FinnhubCompanyProfile2Response,
+  FinnhubCompanyProfile,
+} from './types'
 
 const FINNHUB_BASE = 'https://finnhub.io/api/v1'
 
@@ -30,4 +36,22 @@ export async function fetchFinnhubQuote(symbol: string, apiKey: string): Promise
     change: data.d,
     percentChange: data.dp,
   }
+}
+
+const PROFILE2_BASE = 'https://finnhub.io/api/v1/stock/profile2'
+
+export async function fetchFinnhubCompanyProfile(
+  symbol: string,
+  apiKey: string
+): Promise<FinnhubCompanyProfile | null> {
+  if (!apiKey.trim()) return null
+  const url = new URL(PROFILE2_BASE)
+  url.searchParams.set('symbol', symbol.toUpperCase())
+  url.searchParams.set('token', apiKey)
+
+  const res = await fetch(url.toString(), { method: 'GET', headers: { 'Cache-Control': 'no-store' } })
+  if (!res.ok) return null
+  const data = (await res.json()) as FinnhubCompanyProfile2Response
+  const sector = data?.sector ?? data?.finnhubIndustry ?? 'Unknown'
+  return { symbol: symbol.toUpperCase(), sector }
 }
