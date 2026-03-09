@@ -6,9 +6,10 @@ import { DEFAULT_LIVE_MARKETS_SYMBOLS } from "@/lib/live-markets-symbols"
 /** Poll interval for live prices (ms). */
 const POLL_INTERVAL_MS = 3000
 
+const SYMBOLS = [...DEFAULT_LIVE_MARKETS_SYMBOLS]
+
 export function LiveMarketsStrip() {
-  const symbols = [...DEFAULT_LIVE_MARKETS_SYMBOLS]
-  const { quotes, loading, error } = useLiveQuotes(symbols, POLL_INTERVAL_MS)
+  const { quotes, loading, error } = useLiveQuotes(SYMBOLS, POLL_INTERVAL_MS)
 
   if (error) {
     return (
