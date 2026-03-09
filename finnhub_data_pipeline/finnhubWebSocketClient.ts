@@ -40,6 +40,17 @@ function onMessage(data: Buffer | ArrayBuffer | Buffer[]) {
   } catch { /* ignore */ }
 }
 
+function safeClose(socket: WebSocket | null): void {
+  if (!socket) return
+  try {
+    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      socket.close()
+    }
+  } catch {
+    /* ignore: e.g. "closed before connection was established" */
+  }
+}
+
 function connect(apiKey: string): WebSocket {
   const socket = new WebSocket(`${WS_URL}?token=${encodeURIComponent(apiKey)}`)
   socket.on('open', () => {
@@ -58,10 +69,14 @@ function connect(apiKey: string): WebSocket {
 export function ensureSubscribed(symbol: string, apiKey: string): void {
   if (!apiKey?.trim()) return
   if (!ws || ws.readyState !== WebSocket.OPEN) {
-    if (ws) try { ws.close() } catch { /* ignore */ }
+    safeClose(ws)
     ws = connect(apiKey)
   }
-  subscribe(ws, symbol)
+  const sym = symbol.toUpperCase()
+  if (!subscribedSymbols.has(sym)) {
+    subscribedSymbols.add(sym)
+    if (ws.readyState === WebSocket.OPEN) send(ws, { type: 'subscribe', symbol: sym })
+  }
 }
 
 export function getCachedQuote(symbol: string): FinnhubLiveQuote | null {
@@ -71,7 +86,7 @@ export function getCachedQuote(symbol: string): FinnhubLiveQuote | null {
 export function closeWebSocket(): void {
   if (reconnectTimer) clearTimeout(reconnectTimer)
   reconnectTimer = null
-  if (ws) try { ws.close() } catch { /* ignore */ }
+  safeClose(ws)
   ws = null
   subscribedSymbols.clear()
   quoteCache.clear()

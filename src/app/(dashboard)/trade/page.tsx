@@ -5,12 +5,13 @@ import { useLivePrice } from "@/hooks/useLivePrice"
 
 export default function TradePage() {
   const [symbol, setSymbol] = useState("")
+  const [symbolToLookup, setSymbolToLookup] = useState("")
   const [quantity, setQuantity] = useState("")
   const [tradeType, setTradeType] = useState<"BUY" | "SELL">("BUY")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  const { price: livePrice, loading: livePriceLoading, error: livePriceError } = useLivePrice(symbol, 5000)
+  const { price: livePrice, loading: livePriceLoading, error: livePriceError, refetch: refetchPrice } = useLivePrice(symbolToLookup, 0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,6 +34,7 @@ export default function TradePage() {
       if (response.ok) {
         setMessage({ type: "success", text: `Trade executed successfully! Trade ID: ${data.tradeId}` })
         setSymbol("")
+        setSymbolToLookup("")
         setQuantity("")
       } else {
         setMessage({ type: "error", text: data.error || "Failed to execute trade" })
@@ -57,17 +59,50 @@ export default function TradePage() {
             id="symbol"
             type="text"
             value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            placeholder="e.g., AAPL"
+            onChange={(e) => {
+              setSymbol(e.target.value.toUpperCase())
+              setSymbolToLookup("")
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                const sym = symbol.trim().toUpperCase()
+                if (sym) setSymbolToLookup(sym)
+              }
+            }}
+            placeholder="e.g., AAPL (press Enter to look up)"
             className="w-full px-4 py-2 border rounded-md"
             required
           />
-          {symbol.trim() && (
+          {symbol.trim() && !symbolToLookup && (
             <p className="mt-2 text-sm text-muted-foreground">
-              {livePriceLoading && "Loading price…"}
-              {livePriceError && !livePriceLoading && `Live price: ${livePriceError.slice(0, 50)}${livePriceError.length > 50 ? "…" : ""}`}
-              {livePrice != null && !livePriceLoading && `Live price: $${livePrice.toFixed(2)}`}
+              Press Enter to check if the symbol exists and see live price.
             </p>
+          )}
+          {symbolToLookup && (
+            <div className="mt-2 flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">
+                {livePriceLoading && "Loading price…"}
+                {!livePriceLoading && livePrice != null && (
+                  <>Live price: ${livePrice.toFixed(2)}{livePriceError && " (stale)"}</>
+                )}
+                {!livePriceLoading && livePrice == null && livePriceError && (
+                  <>Live price: {livePriceError.slice(0, 60)}{livePriceError.length > 60 ? "…" : ""}</>
+                )}
+                {!livePriceLoading && livePrice == null && !livePriceError && (
+                  <>No price found for {symbolToLookup}.</>
+                )}
+              </p>
+              {!livePriceLoading && (
+                <button
+                  type="button"
+                  onClick={() => refetchPrice()}
+                  className="text-sm text-primary underline hover:no-underline"
+                >
+                  Refresh price
+                </button>
+              )}
+            </div>
           )}
         </div>
 

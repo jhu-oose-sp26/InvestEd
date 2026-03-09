@@ -25,27 +25,35 @@ export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000):
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchQuotes = useCallback(async () => {
+  const fetchQuotes = useCallback(async (isInitialLoad?: boolean) => {
     const list = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))]
     if (!list.length) {
       setQuotes([])
       setError(null)
       return
     }
-    setLoading(true)
-    setError(null)
+    const isFirstLoad = isInitialLoad !== false
+    if (isFirstLoad) setLoading(true)
+    if (isFirstLoad) setError(null)
     try {
       const res = await fetch(`/api/live-quotes?symbols=${list.map(encodeURIComponent).join(',')}`)
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? `Request failed (${res.status})`)
-        setQuotes([])
+        if (isFirstLoad) {
+          setError(data.error ?? `Request failed (${res.status})`)
+          setQuotes([])
+        }
         return
       }
-      setQuotes(Array.isArray(data) ? data : [])
+      const next = Array.isArray(data) ? data : []
+      if (next.length > 0) setQuotes(next)
+      else if (isFirstLoad) setQuotes([])
+      // On background poll: only update when we got a non-empty array; otherwise keep previous quotes
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch quotes')
-      setQuotes([])
+      if (isFirstLoad) {
+        setError(e instanceof Error ? e.message : 'Failed to fetch quotes')
+        setQuotes([])
+      }
     } finally {
       setLoading(false)
     }
@@ -57,9 +65,9 @@ export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000):
       setError(null)
       return
     }
-    fetchQuotes()
+    fetchQuotes(true) // initial load: show loading
     if (pollIntervalMs <= 0) return
-    const id = setInterval(fetchQuotes, pollIntervalMs)
+    const id = setInterval(() => fetchQuotes(false), pollIntervalMs) // background refresh: no loading flash
     return () => clearInterval(id)
   }, [symbols.join(','), pollIntervalMs, fetchQuotes])
 

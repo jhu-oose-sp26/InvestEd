@@ -19,9 +19,13 @@ export async function fetchFinnhubQuote(symbol: string, apiKey: string): Promise
     throw new Error(`Finnhub quote failed (${res.status}): ${await res.text()}`)
   }
   const data = (await res.json()) as FinnhubQuoteResponse
+  const price = data?.c
+  if (typeof price !== 'number') {
+    throw new Error('Finnhub quote missing current price (market may be closed or symbol invalid)')
+  }
   return {
     symbol: symbol.toUpperCase(),
-    price: data.c,
+    price,
     timestamp: (data.t ?? Date.now() / 1000) * 1000,
     change: data.d,
     percentChange: data.dp,
