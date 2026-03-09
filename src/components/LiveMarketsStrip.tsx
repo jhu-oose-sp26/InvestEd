@@ -3,8 +3,8 @@
 import { useLiveQuotes } from "@/hooks/useLiveQuotes"
 import { DEFAULT_LIVE_MARKETS_SYMBOLS } from "@/lib/live-markets-symbols"
 
-/** Poll interval for live prices (ms). */
-const POLL_INTERVAL_MS = 3000
+/** Poll interval for live prices (ms). Kept high to avoid Finnhub rate limits. */
+const POLL_INTERVAL_MS = 12000
 
 const SYMBOLS = [...DEFAULT_LIVE_MARKETS_SYMBOLS]
 
