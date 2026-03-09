@@ -7,6 +7,7 @@ export interface PositionValue {
     currentValue: number
     unrealizedPnL: number
     unrealizedPnLPercent: number
+    sector?: string
 }
 
 export interface PortfolioSummary {

@@ -19,6 +19,7 @@ interface PortfolioSummary {
     currentValue: number
     unrealizedPnL: number
     unrealizedPnLPercent: number
+    sector?: string
   }>
 }
 
@@ -80,6 +81,16 @@ export default function PortfolioPage() {
 
   const CHART_COLORS = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"]
 
+  const sectorMap = new Map<string, number>()
+  for (const p of portfolio.positions) {
+    const sector = p.sector ?? 'Unknown'
+    sectorMap.set(sector, (sectorMap.get(sector) ?? 0) + p.currentValue)
+  }
+  const sectorPieData = Array.from(sectorMap.entries())
+    .map(([name, value]) => ({ name, value }))
+    .filter((d) => d.value > 0)
+    .sort((a, b) => b.value - a.value)
+
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Portfolio</h1>
@@ -137,6 +148,45 @@ export default function PortfolioPage() {
               <Tooltip
                 formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
                 contentStyle={{ borderRadius: "8px" }}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Sector allocation pie chart */}
+      <div className="border rounded-lg p-4 mb-8">
+        <h2 className="text-xl font-semibold mb-4">Sector allocation</h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Breakdown of your current investments by sector.
+        </p>
+        {sectorPieData.length === 0 ? (
+          <div className="h-64 flex items-center justify-center text-muted-foreground">
+            {portfolio.positions.length === 0
+              ? 'No positions yet'
+              : 'Sector data unavailable. Set FINNHUB_API_KEY in .env to see sector breakdown.'}
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={sectorPieData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={2}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(1)}%`}
+              >
+                {sectorPieData.map((_, index) => (
+                  <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                contentStyle={{ borderRadius: '8px' }}
               />
               <Legend />
             </PieChart>
