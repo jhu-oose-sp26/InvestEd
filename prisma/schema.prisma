@@ -59,21 +59,6 @@ model Position {
 }
 
 model MarketPrice {
-  id       String   @id @default(cuid())
-  symbol   String
-  asOfDate DateTime @map("as_of_date") @db.Date
-  open     Decimal  @db.Decimal(15, 6)
-  high     Decimal  @db.Decimal(15, 6)
-  low      Decimal  @db.Decimal(15, 6)
-  close    Decimal  @db.Decimal(15, 6)
-  volume   BigInt?
-
-  @@unique([symbol, asOfDate])
-  @@index([symbol, asOfDate])
-  @@map("market_prices")
-}
-
-model MarketPriceRealtime {
   id        String   @id @default(cuid())
   symbol    String
   timestamp DateTime // Full timestamp for intraday precision
