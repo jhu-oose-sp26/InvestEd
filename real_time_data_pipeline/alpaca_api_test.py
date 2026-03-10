@@ -17,133 +17,143 @@ from alpaca.data.requests import StockBarsRequest
 from alpaca.data.timeframe import TimeFrame
 
 
-def get_client() -> StockHistoricalDataClient:
-    """Create and return an Alpaca StockHistoricalDataClient."""
-    load_dotenv()
-    api_key = os.getenv("ALPAKA_API_KEY")
-    api_secret = os.getenv("ALPAKA_API_SECRET")
+class AlpacaClient:
+    """Wrapper around Alpaca's StockHistoricalDataClient."""
 
-    if not api_key or not api_secret:
-        raise ValueError("ALPAKA_API_KEY and ALPAKA_API_SECRET must be set in .env")
+    def __init__(self):
+        load_dotenv()
+        api_key = os.getenv("ALPAKA_API_KEY")
+        api_secret = os.getenv("ALPAKA_API_SECRET")
 
-    return StockHistoricalDataClient(api_key, api_secret)
+        if not api_key or not api_secret:
+            raise ValueError("ALPAKA_API_KEY and ALPAKA_API_SECRET must be set in .env")
 
+        self._client = StockHistoricalDataClient(api_key, api_secret)
 
-def normalize_database_url(database_url: str) -> str:
-    """Remove Prisma-specific query params unsupported by psycopg2."""
-    parsed = urlparse(database_url)
-    query = [(k, v) for (k, v) in parse_qsl(parsed.query, keep_blank_values=True) if k != "schema"]
-    return urlunparse(parsed._replace(query=urlencode(query)))
+    def fetch_bars(self, symbol: str, timeframe=TimeFrame.Minute, days: int = 7):
+        """Fetch bars for a symbol over the given lookback period."""
+        end = datetime.now()
+        start = end - timedelta(days=days)
 
-
-def get_database_url() -> str:
-    load_dotenv()
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        raise ValueError("DATABASE_URL must be set in .env")
-    return normalize_database_url(url)
-
-
-def fetch_aapl_minute_bars(client: StockHistoricalDataClient):
-    """Fetch 1-minute bars for AAPL for the past 7 days."""
-    end = datetime.now()
-    start = end - timedelta(days=7)
-
-    request = StockBarsRequest(
-        symbol_or_symbols="AAPL",
-        timeframe=TimeFrame.Minute,
-        start=start,
-        end=end,
-    )
-
-    bars = client.get_stock_bars(request)
-    return bars
-
-
-def store_bars(bars, symbol: str, timeframe: str = "1Min") -> int:
-    """Upsert bars into market_prices_realtime. Returns number of rows upserted."""
-    db_url = get_database_url()
-
-    payload = [
-        (
-            f"rt_{uuid.uuid4().hex[:24]}",  # cuid-like id
-            symbol,
-            bar.timestamp,
-            timeframe,
-            float(bar.open),
-            float(bar.high),
-            float(bar.low),
-            float(bar.close),
-            bar.volume,
-            float(bar.vwap) if bar.vwap else None,
-            int(bar.trade_count) if bar.trade_count else None,
+        request = StockBarsRequest(
+            symbol_or_symbols=symbol,
+            timeframe=timeframe,
+            start=start,
+            end=end,
         )
-        for bar in bars
-    ]
 
-    sql = """
-        INSERT INTO market_prices_realtime
-          (id, symbol, timestamp, timeframe, open, high, low, close, volume, vwap, trade_count)
-        VALUES %s
-        ON CONFLICT (symbol, timestamp, timeframe)
-        DO UPDATE SET
-          open = EXCLUDED.open,
-          high = EXCLUDED.high,
-          low = EXCLUDED.low,
-          close = EXCLUDED.close,
-          volume = EXCLUDED.volume,
-          vwap = EXCLUDED.vwap,
-          trade_count = EXCLUDED.trade_count
-    """
-
-    upserted = 0
-    batch_size = 500
-    with psycopg2.connect(db_url) as conn:
-        with conn.cursor() as cur:
-            for i in range(0, len(payload), batch_size):
-                batch = payload[i : i + batch_size]
-                execute_values(cur, sql, batch)
-                upserted += len(batch)
-    return upserted
+        bars = self._client.get_stock_bars(request)
+        return bars[symbol]
 
 
-def main():
-    client = get_client()
+class DatabaseConnection:
+    """Manages the PostgreSQL connection for market data storage."""
 
-    print("=" * 70)
-    print("  AAPL 1-Minute Bars — Last 7 Days")
-    print("=" * 70)
+    BATCH_SIZE = 500
 
-    bars = fetch_aapl_minute_bars(client)
-    aapl_bars = bars["AAPL"]
+    def __init__(self):
+        load_dotenv()
+        url = os.getenv("DATABASE_URL")
+        if not url:
+            raise ValueError("DATABASE_URL must be set in .env")
+        self._url = self._normalize_url(url)
 
-    print(f"\n  Total bars retrieved: {len(aapl_bars)}\n")
+    @staticmethod
+    def _normalize_url(database_url: str) -> str:
+        """Remove Prisma-specific query params unsupported by psycopg2."""
+        parsed = urlparse(database_url)
+        query = [(k, v) for (k, v) in parse_qsl(parsed.query, keep_blank_values=True) if k != "schema"]
+        return urlunparse(parsed._replace(query=urlencode(query)))
 
-    # Print first 5 bars as a sample
-    print("-" * 70)
-    print("  Sample (first 5 bars):\n")
-    for bar in aapl_bars[:5]:
-        pprint({
-            "timestamp": bar.timestamp,
-            "open": float(bar.open),
-            "high": float(bar.high),
-            "low": float(bar.low),
-            "close": float(bar.close),
-            "volume": bar.volume,
-            "vwap": float(bar.vwap) if bar.vwap else None,
-            "trade_count": bar.trade_count,
-        })
+    def upsert_bars(self, bars, symbol: str, timeframe: str = "1Min") -> int:
+        """Upsert bars into market_prices_realtime. Returns number of rows upserted."""
+        payload = [
+            (
+                f"rt_{uuid.uuid4().hex[:24]}",
+                symbol,
+                bar.timestamp,
+                timeframe,
+                float(bar.open),
+                float(bar.high),
+                float(bar.low),
+                float(bar.close),
+                bar.volume,
+                float(bar.vwap) if bar.vwap else None,
+                int(bar.trade_count) if bar.trade_count else None,
+            )
+            for bar in bars
+        ]
 
-    # Store to database
-    print("\n" + "-" * 70)
-    print("  Storing to market_prices_realtime...")
-    count = store_bars(aapl_bars, symbol="AAPL", timeframe="1Min")
-    print(f"  ✅ Upserted {count} rows into market_prices_realtime")
+        sql = """
+            INSERT INTO market_prices_realtime
+              (id, symbol, timestamp, timeframe, open, high, low, close, volume, vwap, trade_count)
+            VALUES %s
+            ON CONFLICT (symbol, timestamp, timeframe)
+            DO UPDATE SET
+              open = EXCLUDED.open,
+              high = EXCLUDED.high,
+              low = EXCLUDED.low,
+              close = EXCLUDED.close,
+              volume = EXCLUDED.volume,
+              vwap = EXCLUDED.vwap,
+              trade_count = EXCLUDED.trade_count
+        """
 
-    print("\n" + "=" * 70)
-    print("  Pipeline complete.")
-    print("=" * 70)
+        upserted = 0
+        with psycopg2.connect(self._url) as conn:
+            with conn.cursor() as cur:
+                for i in range(0, len(payload), self.BATCH_SIZE):
+                    batch = payload[i : i + self.BATCH_SIZE]
+                    execute_values(cur, sql, batch)
+                    upserted += len(batch)
+        return upserted
+
+
+class AlpacaPipeline:
+    """Orchestrates fetching market data from Alpaca and storing it in Postgres."""
+
+    def __init__(self):
+        self._client = AlpacaClient()
+        self._db = DatabaseConnection()
+
+    def run(self, symbol: str = "AAPL", timeframe=TimeFrame.Minute, days: int = 7):
+        """Fetch bars, print a sample, and store them in the database."""
+        timeframe_label = "1Min"
+
+        print("=" * 70)
+        print(f"  {symbol} {timeframe_label} Bars — Last {days} Days")
+        print("=" * 70)
+
+        bars = self._client.fetch_bars(symbol, timeframe, days)
+
+        print(f"\n  Total bars retrieved: {len(bars)}\n")
+
+        # Print first 5 bars as a sample
+        print("-" * 70)
+        print("  Sample (first 5 bars):\n")
+        for bar in bars[:5]:
+            pprint({
+                "timestamp": bar.timestamp,
+                "open": float(bar.open),
+                "high": float(bar.high),
+                "low": float(bar.low),
+                "close": float(bar.close),
+                "volume": bar.volume,
+                "vwap": float(bar.vwap) if bar.vwap else None,
+                "trade_count": bar.trade_count,
+            })
+
+        # Store to database
+        print("\n" + "-" * 70)
+        print("  Storing to market_prices_realtime...")
+        count = self._db.upsert_bars(bars, symbol=symbol, timeframe=timeframe_label)
+        print(f"  ✅ Upserted {count} rows into market_prices_realtime")
+
+        print("\n" + "=" * 70)
+        print("  Pipeline complete.")
+        print("=" * 70)
 
 
 if __name__ == "__main__":
-    main()
+    pipeline = AlpacaPipeline()
+    pipeline.run()
