@@ -24,7 +24,10 @@ export default function CustomQuizListPage() {
   useEffect(() => {
     fetch('/api/custom-quizzes')
       .then((r) => r.json())
-      .then(setQuizzes)
+      .then((data) => {
+        if (Array.isArray(data)) setQuizzes(data)
+        else setError('Failed to load quizzes')
+      })
       .catch(() => setError('Failed to load quizzes'))
       .finally(() => setLoading(false))
   }, [])
