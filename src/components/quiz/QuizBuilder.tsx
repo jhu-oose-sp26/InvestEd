@@ -38,7 +38,7 @@ export function QuizBuilder({ initialData, onSave, saving }: QuizBuilderProps) {
   const [error, setError] = useState<string | null>(null)
 
   const updateQuestion = (i: number, q: QuestionData) =>
-    setQuestions((prev) => prev.map((old, idx) => (idx === i ? q : old)))
+    setQuestions((prev) => prev.map((old, idx) => (idx === i ? { ...old, ...q } : old)))
 
   const removeQuestion = (i: number) =>
     setQuestions((prev) => prev.filter((_, idx) => idx !== i))

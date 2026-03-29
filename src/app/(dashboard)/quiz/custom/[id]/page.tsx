@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface QuizQuestion {
   id: string
@@ -109,8 +111,11 @@ export default function TakeCustomQuizPage() {
         </div>
         <div className="border rounded-lg p-6 mb-8">
           {q.context && (
-            <div className="mb-6 p-4 rounded-lg bg-muted/50 border border-border">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{q.context}</p>
+            <div className="mb-6 p-4 rounded-lg bg-muted/50 border border-border
+                            prose prose-sm prose-slate max-w-none dark:prose-invert
+                            prose-table:w-full prose-th:text-left prose-th:font-semibold
+                            prose-td:py-1 prose-th:py-1 prose-p:my-0">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{q.context}</ReactMarkdown>
             </div>
           )}
           <h2 className="text-xl font-semibold mb-6">{q.prompt}</h2>

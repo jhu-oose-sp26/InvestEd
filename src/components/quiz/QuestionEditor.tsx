@@ -1,5 +1,8 @@
 "use client"
 
+import { useState } from "react"
+import { ReportPicker } from "./ReportPicker"
+
 export interface QuestionData {
   id?: string
   prompt: string
@@ -19,11 +22,19 @@ interface QuestionEditorProps {
 }
 
 export function QuestionEditor({ index, question, total, onChange, onRemove, onMoveUp, onMoveDown }: QuestionEditorProps) {
+  const [showReportPicker, setShowReportPicker] = useState(false)
+
   const setOption = (i: number, value: string) => {
     const options = [...question.options]
     const wasCorrect = question.correctAnswer === options[i]
     options[i] = value
     onChange({ ...question, options, correctAnswer: wasCorrect ? value : question.correctAnswer })
+  }
+
+  const insertContext = (markdown: string) => {
+    const existing = question.context?.trim()
+    const updated = existing ? `${existing}\n\n${markdown}` : markdown
+    onChange({ ...question, context: updated })
   }
 
   return (
@@ -54,14 +65,28 @@ export function QuestionEditor({ index, question, total, onChange, onRemove, onM
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Context (optional)</label>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium">Context (optional)</label>
+          <button
+            type="button"
+            onClick={() => setShowReportPicker((v) => !v)}
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+          >
+            {showReportPicker ? "Hide report data" : "Insert from financial report"}
+          </button>
+        </div>
         <textarea
           value={question.context ?? ''}
           onChange={(e) => onChange({ ...question, context: e.target.value })}
-          rows={2}
-          className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+          rows={question.context && question.context.length > 100 ? 6 : 2}
+          className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary font-mono"
           placeholder="Optional background context shown above the question..."
         />
+        {showReportPicker && (
+          <div className="mt-2">
+            <ReportPicker onInsertContext={insertContext} />
+          </div>
+        )}
       </div>
 
       <div>
