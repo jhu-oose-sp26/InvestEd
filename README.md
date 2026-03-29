@@ -214,35 +214,70 @@ Get portfolio summary with current valuations
 ### GET `/api/quote?symbol=AAPL`
 Get latest stored quote (mapped from latest close in `market_prices`)
 
-### Report Matchup APIs
+---
 
-The report matchup endpoints read from a local generated dataset and do not ship with committed data files.
+## Quiz Features (Hanliang)
 
-Before using `GET /api/report-options` or `GET /api/report-matchup`, make sure your Python environment has the required packages.
+This section covers the quiz-related features: the Daily Challenge, statement-reading questions, and user-created custom quizzes. These are maintained separately from the core trading features above.
 
-Recommended setup if you do not already have them:
+### How it works
+
+- **Daily Challenge** (`/quiz`): generates 5 questions per day from MAG7 quarterly financial data stored in the `quarterly_reports` DB table. Falls back to conceptual-only questions if the table is empty.
+- **Statement Reading**: a subset of Daily Challenge questions that show real financial statement tables (income, cash flow) and ask users to read/compute values directly.
+- **Custom Quizzes** (`/quiz/custom`): users can create, edit, share, and take their own multiple-choice quizzes via a form builder.
+
+### Prerequisites
+
+In addition to the base setup (Postgres running, schema pushed, temp user seeded), you need a Financial Modeling Prep API key to populate the quarterly report data.
+
+Get one free at [financialmodelingprep.com](https://financialmodelingprep.com/developer/docs/).
+
+### 1. Set up Python environment
 
 ```bash
 python3 -m venv market_data_pipeline/.venv
 market_data_pipeline/.venv/bin/pip install -r market_data_pipeline/requirements.txt
 ```
 
-If your current Python already has the dependencies installed, you can skip the venv and use `python3` directly.
-
-Then generate the required local artifacts:
+### 2. Fetch financial statements and price history
 
 ```bash
+source market_data_pipeline/.venv/bin/activate
+
 export FMP_API_KEY=your_fmp_key
 python3 market_data_pipeline/financial_stmts.py
 python3 market_data_pipeline/download_yfinance_prices.py
-python3 market_data_pipeline/build_report_matchup_data.py
 ```
 
-This creates local-only files under `mag7_fmp_financials/` and `market_data_pipeline/yfinance_daily/`.
+This downloads MAG7 (AAPL, MSFT, AMZN, GOOGL, META, NVDA, TSLA) quarterly financials and daily closing prices into local files under `mag7_fmp_financials/` and `market_data_pipeline/yfinance_daily/`.
 
-### Daily Challenge Quiz
+### 3. Build the dataset and load into the database
 
-`GET /api/quiz/questions?date=YYYY-MM-DD` returns that day's quiz questions. The Daily Challenge uses the same dataset. See `docs/quiz-design.md` for details.
+```bash
+python3 market_data_pipeline/build_report_matchup_data.py --database-url "$DATABASE_URL"
+```
+
+This merges the financials and price data into quarterly report records and upserts them into the `quarterly_reports` table. Re-running is safe (idempotent).
+
+To also write the JSON file (useful for inspection):
+```bash
+python3 market_data_pipeline/build_report_matchup_data.py --database-url "$DATABASE_URL" --output mag7_fmp_financials/_derived/quarterly_report_matchups.json
+```
+
+### 4. Verify
+
+| Page | URL | What to check |
+|------|-----|---------------|
+| Daily Challenge | `/quiz` | 5 questions load; some show a financial table in the context box |
+| Custom Quizzes | `/quiz/custom` | Listing page loads |
+| Create a quiz | `/quiz/custom/new` | Add a title + questions, save → redirects to take page |
+| Take a quiz | `/quiz/custom/[id]` | Options shuffle, score shows at the end |
+| Edit a quiz | `/quiz/custom/[id]/edit` | Changes persist after save |
+| Report Matchup API | `/api/report-matchup?left=AAPL&right=MSFT&quarter=2024-Q2` | Returns JSON from DB |
+
+> **Custom Quizzes work without step 2–3.** Only the Daily Challenge and Report Matchup APIs require the quarterly data to be loaded.
+
+---
 
 ## Development
 
