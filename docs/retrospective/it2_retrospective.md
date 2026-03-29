@@ -1,0 +1,9 @@
+During Iteration 2, we focused on expanding the core functionality of the application and continuing to build the platform foundation. This involved implementing more concrete features and checking out different financial data integrations.
+
+We created a basic stock data display along with a portfolio view that includes graphics to help visualize portfolio information. While this is still an early prototypes, this  give us a better idea of how users will interact with the platform and provide an idea for future UI improvements.
+
+In the back we also integrated with the Finnhub API and integrating subscription to its WebSocket service, allowing us to work with real-time stock data. 
+
+For the historial data related features, we also downloaded and parsed financial statement reports for companies over the past three years, which can support analytics and question generation within the app. We created a structured pool of conceptual and factual finance questions that can be used as daily prompts for users.
+
+We also experimented with the Alpaca API by creating a new database model and retrieving recent price data as a proof of concept. Moving forward, we aim to complete our remaining must-have features, finalize which API to rely on, improve portfolio tracking, and begin implementing real-time trading logic. We also want to make sure that our websocket and api call system is correct and sturdy for different UIs (like candle charts and trading logic). For this iteration, the people who worked on api and the people who worked on UI will work together to make sure that this important portion of our project works correctly. 
