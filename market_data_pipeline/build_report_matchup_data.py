@@ -3,8 +3,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import pandas as pd
 
@@ -38,9 +42,26 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=DEFAULT_OUTPUT_PATH,
-        help="Output JSON path.",
+        help="Output JSON path (default: writes JSON file).",
+    )
+    parser.add_argument(
+        "--no-json",
+        action="store_true",
+        help="Skip writing the JSON output file (useful when --database-url is set).",
+    )
+    parser.add_argument(
+        "--database-url",
+        default=os.getenv("DATABASE_URL"),
+        help="Postgres connection URL. When provided, upserts reports into the quarterly_reports table.",
     )
     return parser.parse_args()
+
+
+def normalize_database_url(database_url: str) -> str:
+    """Remove Prisma-specific query params unsupported by psycopg2."""
+    parsed = urlparse(database_url)
+    query = [(k, v) for (k, v) in parse_qsl(parsed.query, keep_blank_values=True) if k != "schema"]
+    return urlunparse(parsed._replace(query=urlencode(query)))
 
 
 def clean_value(value: Any) -> Any:
@@ -177,18 +198,63 @@ def build_reports(
     return reports
 
 
+def upsert_reports(database_url: str, reports: list[dict[str, Any]]) -> int:
+    import psycopg2
+    from psycopg2.extras import Json, execute_values
+
+    now = datetime.now(timezone.utc)
+    payload = [
+        (
+            f"qr_{uuid.uuid4().hex}",
+            r["symbol"],
+            r["quarter"],
+            r["statementDate"],
+            r["releaseDate"],
+            Json(r["statements"]),
+            Json(r["performance"]),
+            now,
+            now,
+        )
+        for r in reports
+    ]
+
+    sql = """
+        INSERT INTO quarterly_reports
+          (id, symbol, quarter, "statementDate", "releaseDate", statements, performance, "createdAt", "updatedAt")
+        VALUES %s
+        ON CONFLICT (symbol, quarter) DO UPDATE SET
+          "statementDate" = EXCLUDED."statementDate",
+          "releaseDate"   = EXCLUDED."releaseDate",
+          statements      = EXCLUDED.statements,
+          performance     = EXCLUDED.performance,
+          "updatedAt"     = NOW()
+    """
+
+    with psycopg2.connect(normalize_database_url(database_url)) as conn:
+        with conn.cursor() as cur:
+            execute_values(cur, sql, payload)
+
+    return len(payload)
+
+
 def main() -> None:
     args = parse_args()
     reports = build_reports(args.combined_dir, args.price_dir)
 
-    payload = {
-        "generatedAt": pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "reports": reports,
-    }
+    if not args.no_json:
+        payload = {
+            "generatedAt": pd.Timestamp.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "reports": reports,
+        }
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(payload, indent=2))
+        print(f"Wrote {len(reports)} reports -> {args.output}")
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(payload, indent=2))
-    print(f"Wrote {len(reports)} reports -> {args.output}")
+    if args.database_url:
+        count = upsert_reports(args.database_url, reports)
+        print(f"Upserted {count} reports -> Postgres")
+    elif args.no_json:
+        print("Warning: --no-json set but --database-url not provided. No output written.")
 
 
 if __name__ == "__main__":
