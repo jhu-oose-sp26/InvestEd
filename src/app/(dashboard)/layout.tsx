@@ -39,6 +39,12 @@ export default function DashboardLayout({
               >
                 Daily Challenge
               </Link>
+              <Link
+                href="/quiz/custom"
+                className="text-sm font-medium hover:text-primary transition-colors"
+              >
+                Custom Quizzes
+              </Link>
             </div>
           </div>
         </div>
