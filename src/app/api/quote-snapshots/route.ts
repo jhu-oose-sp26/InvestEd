@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Supabase is not configured',
-          hint: 'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and apply supabase/migrations',
+          hint: 'Set HOST (Supabase project URL) and POSTGRES_PASSWORD (service_role key) and apply supabase/migrations',
         },
         { status: 503 },
       )

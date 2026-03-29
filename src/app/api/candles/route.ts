@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Supabase is not configured',
-          hint: 'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY, apply supabase/migrations to your project, then run npm run candles:sync',
+          hint: 'Set HOST (Supabase project URL, https://…supabase.co) and POSTGRES_PASSWORD (service_role key), apply supabase/migrations, then run npm run candles:sync',
         },
         { status: 503 },
       )

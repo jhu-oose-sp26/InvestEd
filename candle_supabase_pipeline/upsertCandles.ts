@@ -5,7 +5,6 @@ const BATCH = 500
 
 /**
  * Idempotent upsert on (symbol, bucket_start, timeframe, source).
- * Later writes replace OHLCV for the same vendor bar (e.g. vendor corrections).
  */
 export async function upsertMarketCandles(
   client: SupabaseClient,

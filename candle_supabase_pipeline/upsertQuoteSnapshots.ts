@@ -3,9 +3,6 @@ import type { MarketQuoteSnapshotRow } from './types'
 
 const BATCH = 500
 
-/**
- * Upsert on (symbol, observed_at) so repeated syncs with the same Finnhub timestamp are idempotent.
- */
 export async function upsertQuoteSnapshots(
   client: SupabaseClient,
   rows: MarketQuoteSnapshotRow[],
