@@ -42,6 +42,20 @@ export interface FinnhubLiveQuote {
   percentChange?: number
 }
 
+/** Full /quote payload normalized for persistence (Supabase pipeline). */
+export interface FinnhubQuoteSnapshot {
+  symbol: string
+  /** ISO 8601 UTC */
+  observedAtIso: string
+  lastPrice: number
+  dayOpen: number | null
+  dayHigh: number | null
+  dayLow: number | null
+  prevClose: number | null
+  changeAbs: number | null
+  changePct: number | null
+}
+
 // --- Company Profile (GET /stock/profile2) - for sector/industry ---
 export interface FinnhubCompanyProfile2Response {
   name?: string
