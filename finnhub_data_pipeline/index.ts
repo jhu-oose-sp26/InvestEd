@@ -4,10 +4,11 @@
  */
 
 export { getLiveQuote, getLiveQuotes } from './finnhubLiveQuoteService'
-export { fetchFinnhubCompanyProfile } from './finnhubRestClient'
+export { fetchFinnhubCompanyProfile, fetchFinnhubQuoteSnapshot } from './finnhubRestClient'
 export type {
   FinnhubLiveQuote,
   FinnhubQuoteResponse,
+  FinnhubQuoteSnapshot,
   FinnhubTradeItem,
   FinnhubTradeMessage,
   FinnhubCompanyProfile,
