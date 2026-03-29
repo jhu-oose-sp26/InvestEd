@@ -20,6 +20,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!Array.isArray(options) || options.length < 2 || options.length > 6) {
       return NextResponse.json({ error: 'options must be an array of 2–6 strings' }, { status: 400 })
     }
+    if (options.some((o) => typeof o !== 'string' || o.trim().length === 0)) {
+      return NextResponse.json({ error: 'each option must be a non-empty string' }, { status: 400 })
+    }
     if (!correctAnswer || !options.includes(correctAnswer)) {
       return NextResponse.json({ error: 'correctAnswer must be one of the options' }, { status: 400 })
     }

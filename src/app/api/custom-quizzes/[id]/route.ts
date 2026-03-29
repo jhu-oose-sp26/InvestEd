@@ -41,8 +41,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       )
     }
 
-    if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
-      return NextResponse.json({ error: 'title must be a non-empty string' }, { status: 400 })
+    if (title !== undefined) {
+      if (typeof title !== 'string' || title.trim().length === 0) {
+        return NextResponse.json({ error: 'title must be a non-empty string' }, { status: 400 })
+      }
+      if (title.length > 200) {
+        return NextResponse.json({ error: 'title must be 200 characters or fewer' }, { status: 400 })
+      }
     }
 
     const updated = await prisma.customQuiz.update({

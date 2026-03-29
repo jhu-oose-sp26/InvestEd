@@ -22,12 +22,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = await request.json()
     const { prompt, options, correctAnswer, context, order } = body
 
-    if (options !== undefined && (!Array.isArray(options) || options.length < 2 || options.length > 6)) {
-      return NextResponse.json({ error: 'options must be an array of 2–6 strings' }, { status: 400 })
+    if (options !== undefined) {
+      if (!Array.isArray(options) || options.length < 2 || options.length > 6) {
+        return NextResponse.json({ error: 'options must be an array of 2–6 strings' }, { status: 400 })
+      }
+      if (options.some((o: unknown) => typeof o !== 'string' || o.trim().length === 0)) {
+        return NextResponse.json({ error: 'each option must be a non-empty string' }, { status: 400 })
+      }
     }
-    const resolvedOptions = options ?? (question.options as string[])
-    if (correctAnswer !== undefined && !resolvedOptions.includes(correctAnswer)) {
-      return NextResponse.json({ error: 'correctAnswer must be one of the options' }, { status: 400 })
+    const resolvedOptions = (options ?? question.options) as string[]
+    // If options changed, verify the stored correctAnswer is still valid
+    const resolvedCorrectAnswer = correctAnswer ?? question.correctAnswer
+    if (!resolvedOptions.includes(resolvedCorrectAnswer)) {
+      return NextResponse.json(
+        { error: 'correctAnswer must be one of the options — provide a new correctAnswer when changing options' },
+        { status: 400 }
+      )
     }
 
     const updated = await prisma.customQuizQuestion.update({

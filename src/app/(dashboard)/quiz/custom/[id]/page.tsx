@@ -74,10 +74,14 @@ export default function TakeCustomQuizPage() {
         <h1 className="text-3xl font-bold mb-2">{quiz.title}</h1>
         {quiz.description && <p className="text-muted-foreground mb-6">{quiz.description}</p>}
         <p className="text-sm text-muted-foreground mb-8">{total} question{total !== 1 ? 's' : ''}</p>
+        {total === 0 && (
+          <p className="text-muted-foreground mb-6">This quiz has no questions yet.</p>
+        )}
         <div className="flex justify-center gap-3">
           <button
             onClick={() => setState("questions")}
-            className="px-8 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            disabled={total === 0}
+            className="px-8 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Start Quiz
           </button>

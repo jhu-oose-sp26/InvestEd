@@ -62,7 +62,10 @@ export default function EditCustomQuizPage() {
 
       // Delete all existing questions and re-create (simplest approach for edit)
       for (const q of quiz.questions) {
-        await fetch(`/api/custom-quizzes/${id}/questions/${q.id}`, { method: 'DELETE' })
+        const delRes = await fetch(`/api/custom-quizzes/${id}/questions/${q.id}`, { method: 'DELETE' })
+        if (!delRes.ok && delRes.status !== 404) {
+          throw new Error('Failed to remove existing question — save aborted')
+        }
       }
       for (const [i, q] of data.questions.entries()) {
         const qRes = await fetch(`/api/custom-quizzes/${id}/questions`, {

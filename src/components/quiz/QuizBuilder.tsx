@@ -3,8 +3,9 @@
 import { useState } from "react"
 import { QuestionEditor, type QuestionData } from "./QuestionEditor"
 
-function blankQuestion(): QuestionData {
-  return { prompt: '', options: ['', '', '', ''], correctAnswer: '' }
+let _clientIdCounter = 0
+function blankQuestion(): QuestionData & { _clientId: number } {
+  return { _clientId: ++_clientIdCounter, prompt: '', options: ['', '', '', ''], correctAnswer: '' }
 }
 
 function validateForm(title: string, questions: QuestionData[]): string | null {
@@ -12,7 +13,7 @@ function validateForm(title: string, questions: QuestionData[]): string | null {
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i]
     if (!q.prompt.trim()) return `Question ${i + 1}: prompt is required.`
-    if (q.options.some((o) => !o.trim())) return `Question ${i + 1}: all four options are required.`
+    if (q.options.some((o) => !o.trim())) return `Question ${i + 1}: all options must be non-empty.`
     if (!q.correctAnswer) return `Question ${i + 1}: select the correct answer.`
     if (!q.options.includes(q.correctAnswer)) return `Question ${i + 1}: correct answer must match one of the options.`
   }
@@ -29,8 +30,10 @@ export function QuizBuilder({ initialData, onSave, saving }: QuizBuilderProps) {
   const [title, setTitle] = useState(initialData?.title ?? '')
   const [description, setDescription] = useState(initialData?.description ?? '')
   const [isPublic, setIsPublic] = useState(initialData?.isPublic ?? false)
-  const [questions, setQuestions] = useState<QuestionData[]>(
-    initialData?.questions.length ? initialData.questions : [blankQuestion()]
+  const [questions, setQuestions] = useState<(QuestionData & { _clientId: number })[]>(
+    initialData?.questions.length
+      ? initialData.questions.map((q) => ({ ...q, _clientId: ++_clientIdCounter }))
+      : [blankQuestion()]
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -108,7 +111,7 @@ export function QuizBuilder({ initialData, onSave, saving }: QuizBuilderProps) {
         <h2 className="text-lg font-semibold">Questions</h2>
         {questions.map((q, i) => (
           <QuestionEditor
-            key={i}
+            key={q._clientId}
             index={i}
             question={q}
             total={questions.length}
