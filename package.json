@@ -11,10 +11,13 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "candles:sync": "tsx candle_supabase_pipeline/cli/sync.ts",
+    "candles:backfill": "tsx candle_supabase_pipeline/cli/backfill.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
+    "@supabase/supabase-js": "^2.49.1",
     "@types/ws": "^8.18.1",
     "axios": "^1.7.0",
     "class-variance-authority": "^0.7.0",
@@ -33,10 +36,12 @@
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.0",
+    "dotenv": "^16.4.7",
     "eslint": "^10.0.1",
     "eslint-config-next": "^12.0.4",
     "postcss": "^8.4.0",
     "prisma": "^5.19.0",
+    "tsx": "^4.19.3",
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.5.0"
