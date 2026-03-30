@@ -1,20 +1,33 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-import type { ReportMatchupDataset } from '@/types'
+import type { QuarterlyReportRecord, QuarterlyStatements, PerformanceWindow, ReportMatchupDataset } from '@/types'
+import { prisma } from '@/lib/prisma'
 
-const DEFAULT_DATASET_PATH = path.join(
-  process.cwd(),
-  'mag7_fmp_financials',
-  '_derived',
-  'quarterly_report_matchups.json'
-)
+function toReportRecord(row: {
+  symbol: string
+  quarter: string
+  statementDate: string
+  releaseDate: string
+  statements: unknown
+  performance: unknown
+}): QuarterlyReportRecord {
+  return {
+    symbol: row.symbol,
+    quarter: row.quarter,
+    statementDate: row.statementDate,
+    releaseDate: row.releaseDate,
+    statements: row.statements as unknown as QuarterlyStatements,
+    performance: row.performance as unknown as PerformanceWindow,
+  }
+}
 
 export async function loadDataset(): Promise<ReportMatchupDataset> {
-  const datasetPath = process.env.REPORT_MATCHUP_DATA_PATH || DEFAULT_DATASET_PATH
-  const content = await readFile(datasetPath, 'utf8')
-  const parsed = JSON.parse(content) as ReportMatchupDataset
-  if (!Array.isArray(parsed.reports)) {
-    throw new Error('Report matchup dataset is malformed')
+  const rows = await prisma.quarterlyReport.findMany({
+    orderBy: [{ symbol: 'asc' }, { quarter: 'asc' }],
+  })
+  if (rows.length === 0) {
+    throw new Error('No quarterly report data available. Run the pipeline to populate the database.')
   }
-  return parsed
+  return {
+    generatedAt: new Date().toISOString(),
+    reports: rows.map(toReportRecord),
+  }
 }

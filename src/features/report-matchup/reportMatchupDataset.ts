@@ -1,18 +1,11 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
 import type {
   QuarterlyReportRecord,
-  ReportMatchupDataset,
+  QuarterlyStatements,
+  PerformanceWindow,
   ReportMatchupResponse,
   ReportOptionsResponse,
 } from '@/types'
-
-const DEFAULT_DATASET_PATH = path.join(
-  process.cwd(),
-  'mag7_fmp_financials',
-  '_derived',
-  'quarterly_report_matchups.json'
-)
+import { prisma } from '@/lib/prisma'
 
 class ReportMatchupError extends Error {
   status: number
@@ -21,10 +14,6 @@ class ReportMatchupError extends Error {
     super(message)
     this.status = status
   }
-}
-
-function getDatasetPath(): string {
-  return process.env.REPORT_MATCHUP_DATA_PATH || DEFAULT_DATASET_PATH
 }
 
 function parseQuarter(quarter: string): { year: number; quarter: number } {
@@ -55,49 +44,53 @@ function normalizeSymbol(symbol: string | null): string | null {
   return trimmed && /^[A-Z.]+$/.test(trimmed) ? trimmed : null
 }
 
-async function loadDataset(): Promise<ReportMatchupDataset> {
-  try {
-    const content = await readFile(getDatasetPath(), 'utf8')
-    const parsed = JSON.parse(content) as ReportMatchupDataset
-    if (!Array.isArray(parsed.reports)) {
-      throw new ReportMatchupError(500, 'Report matchup dataset is malformed')
-    }
-    return parsed
-  } catch (error) {
-    if (error instanceof ReportMatchupError) {
-      throw error
-    }
-
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new ReportMatchupError(
-        500,
-        'Report matchup dataset not found. Build mag7_fmp_financials/_derived/quarterly_report_matchups.json first.'
-      )
-    }
-
-    throw new ReportMatchupError(500, 'Failed to load report matchup dataset')
+function toReportRecord(row: {
+  symbol: string
+  quarter: string
+  statementDate: string
+  releaseDate: string
+  statements: unknown
+  performance: unknown
+}): QuarterlyReportRecord {
+  return {
+    symbol: row.symbol,
+    quarter: row.quarter,
+    statementDate: row.statementDate,
+    releaseDate: row.releaseDate,
+    statements: row.statements as unknown as QuarterlyStatements,
+    performance: row.performance as unknown as PerformanceWindow,
   }
 }
 
-function reportsBySymbol(dataset: ReportMatchupDataset): Map<string, QuarterlyReportRecord[]> {
+async function loadDataset(): Promise<QuarterlyReportRecord[]> {
+  const rows = await prisma.quarterlyReport.findMany({
+    orderBy: [{ symbol: 'asc' }, { quarter: 'asc' }],
+  })
+  if (rows.length === 0) {
+    throw new ReportMatchupError(503, 'No quarterly report data available. Run the pipeline to populate the database.')
+  }
+  return rows.map(toReportRecord)
+}
+
+function reportsBySymbol(reports: QuarterlyReportRecord[]): Map<string, QuarterlyReportRecord[]> {
   const grouped = new Map<string, QuarterlyReportRecord[]>()
 
-  for (const report of dataset.reports) {
-    const reports = grouped.get(report.symbol) || []
-    reports.push(report)
-    grouped.set(report.symbol, reports)
+  for (const report of reports) {
+    const list = grouped.get(report.symbol) || []
+    list.push(report)
+    grouped.set(report.symbol, list)
   }
 
-  for (const reports of grouped.values()) {
-    reports.sort((left, right) => compareQuarterDesc(left.quarter, right.quarter))
+  for (const list of grouped.values()) {
+    list.sort((left, right) => compareQuarterDesc(left.quarter, right.quarter))
   }
 
   return grouped
 }
 
 export async function getReportOptions(): Promise<ReportOptionsResponse> {
-  const dataset = await loadDataset()
-  const grouped = reportsBySymbol(dataset)
+  const reports = await loadDataset()
+  const grouped = reportsBySymbol(reports)
   const symbols = Array.from(grouped.keys()).sort()
 
   const quartersBySymbol = Object.fromEntries(
@@ -142,8 +135,8 @@ export async function getReportMatchup(
     throw new ReportMatchupError(400, 'left and right must be different symbols')
   }
 
-  const dataset = await loadDataset()
-  const grouped = reportsBySymbol(dataset)
+  const reports = await loadDataset()
+  const grouped = reportsBySymbol(reports)
 
   const leftReports = grouped.get(leftSymbol)
   const rightReports = grouped.get(rightSymbol)
