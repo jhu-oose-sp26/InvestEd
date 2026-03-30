@@ -237,6 +237,123 @@ Project Link: [InvestEd](https://github.com/jhu-oose-sp26/InvestEd)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+
+---
+
+## Quiz Features (Hanliang)
+
+This section covers the quiz-related features: the Daily Challenge, statement-reading questions, and user-created custom quizzes. These are maintained separately from the core trading features above.
+
+### How it works
+
+- **Daily Challenge** (`/quiz`): generates 5 questions per day from MAG7 quarterly financial data stored in the `quarterly_reports` DB table. Falls back to conceptual-only questions if the table is empty.
+- **Statement Reading**: a subset of Daily Challenge questions that show real financial statement tables (income, cash flow) and ask users to read/compute values directly.
+- **Custom Quizzes** (`/quiz/custom`): users can create, edit, share, and take their own multiple-choice quizzes via a form builder.
+
+### Prerequisites
+
+In addition to the base setup (Postgres running, schema pushed, temp user seeded), you need a Financial Modeling Prep API key to populate the quarterly report data.
+
+Get one free at [financialmodelingprep.com](https://financialmodelingprep.com/developer/docs/).
+
+### 1. Set up Python environment
+
+```bash
+python3 -m venv market_data_pipeline/.venv
+market_data_pipeline/.venv/bin/pip install -r market_data_pipeline/requirements.txt
+```
+
+### 2. Fetch financial statements and price history
+
+```bash
+source market_data_pipeline/.venv/bin/activate
+
+export FMP_API_KEY=your_fmp_key
+python3 market_data_pipeline/financial_stmts.py
+python3 market_data_pipeline/download_yfinance_prices.py
+```
+
+This downloads MAG7 (AAPL, MSFT, AMZN, GOOGL, META, NVDA, TSLA) quarterly financials and daily closing prices into local files under `mag7_fmp_financials/` and `market_data_pipeline/yfinance_daily/`.
+
+### 3. Build the dataset and load into the database
+
+```bash
+python3 market_data_pipeline/build_report_matchup_data.py --database-url "$DATABASE_URL"
+```
+
+This merges the financials and price data into quarterly report records and upserts them into the `quarterly_reports` table. Re-running is safe (idempotent).
+
+To also write the JSON file (useful for inspection):
+```bash
+python3 market_data_pipeline/build_report_matchup_data.py --database-url "$DATABASE_URL" --output mag7_fmp_financials/_derived/quarterly_report_matchups.json
+```
+
+### 4. Verify
+
+| Page | URL | What to check |
+|------|-----|---------------|
+| Daily Challenge | `/quiz` | 5 questions load; some show a financial table in the context box |
+| Custom Quizzes | `/quiz/custom` | Listing page loads |
+| Create a quiz | `/quiz/custom/new` | Add a title + questions, save → redirects to take page |
+| Take a quiz | `/quiz/custom/[id]` | Options shuffle, score shows at the end |
+| Edit a quiz | `/quiz/custom/[id]/edit` | Changes persist after save |
+| Report Matchup API | `/api/report-matchup?left=AAPL&right=MSFT&quarter=2024-Q2` | Returns JSON from DB |
+
+> **Custom Quizzes work without step 2–3.** Only the Daily Challenge and Report Matchup APIs require the quarterly data to be loaded.
+
+---
+
+## Development
+
+### Database Commands
+
+```bash
+# Generate Prisma client after schema changes
+npm run db:generate
+
+# Push schema changes to database
+npm run db:push
+
+# Create and run migrations (for production)
+npm run db:migrate
+
+# Open Prisma Studio (database GUI)
+npm run db:studio
+```
+
+### Market Data Ingestion
+
+Use the S3-to-Postgres loader to populate `market_prices`:
+
+```bash
+python3 market_data_pipeline/s3_to_postgres.py \
+  --bucket your-bucket-name \
+  --prefix historical/daily/ \
+  --region us-east-2
+```
+
+For details and dry-run examples, see `market_data_pipeline/README.md`.
+
+### Code Structure
+
+- **Features**: Domain-specific logic organized by feature (trading, portfolio, market-data)
+- **Services**: Business logic with database operations
+- **API Routes**: Next.js API endpoints that use services
+- **Components**: Reusable UI components (to be extended with Shadcn UI)
+
+## Next Steps
+
+1. **Authentication**: Implement user authentication (NextAuth.js recommended)
+2. **Shadcn UI Components**: Add more UI components from Shadcn UI library
+3. **Historical Data Pipeline**: Automate ingest from S3 into `market_prices`
+4. **Testing**: Add unit and integration tests
+5. **Error Boundaries**: Add React error boundaries for better error handling
+6. **Type Safety**: Enhance TypeScript types and validation
+
+## License
+
+MIT
+
 <!-- MARKDOWN LINKS & IMAGES -->
 [issues-shield]: https://img.shields.io/github/issues/[USERNAME]/[REPO].svg?style=for-the-badge
 [issues-url]: https://github.com/jhu-oose-sp26/InvestEd/issues
