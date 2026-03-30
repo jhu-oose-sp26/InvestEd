@@ -11,34 +11,43 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "candles:sync": "tsx candle_supabase_pipeline/cli/sync.ts",
+    "candles:backfill": "tsx candle_supabase_pipeline/cli/backfill.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
+    "@supabase/supabase-js": "^2.49.1",
     "@types/ws": "^8.18.1",
     "axios": "^1.7.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "lightweight-charts": "^4.2.3",
     "lucide-react": "^0.427.0",
     "next": "^16.1.6",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.7.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.5.0",
     "ws": "^8.19.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.0",
-    "eslint": "^9.21.0",
+    "dotenv": "^16.4.7",
+    "eslint": "^10.0.1",
     "eslint-config-next": "^16.1.6",
     "postcss": "^8.4.0",
     "prisma": "^5.19.0",
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.19.3",
     "typescript": "^5.5.0"
   }
 }

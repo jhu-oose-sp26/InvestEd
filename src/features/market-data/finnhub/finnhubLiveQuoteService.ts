@@ -8,6 +8,7 @@ import { ensureSubscribed, ensureWatchlistSubscribed, getCachedQuote } from './f
 import type { FinnhubLiveQuote } from './types'
 
 const DEFAULT_STALE_MS = 60_000
+const REST_RETRY_DELAY_MS = 400
 
 export async function getLiveQuote(
   symbol: string,
@@ -20,11 +21,21 @@ export async function getLiveQuote(
   ensureSubscribed(sym, apiKey)
   const cached = getCachedQuote(sym)
   if (cached && Date.now() - cached.timestamp < staleMs) return cached
-  try {
-    return await fetchFinnhubQuote(sym, apiKey)
-  } catch {
-    return cached ?? null
+  const tryRest = async (): Promise<FinnhubLiveQuote | null> => {
+    try {
+      return await fetchFinnhubQuote(sym, apiKey!)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.includes('rate limit')) throw e
+      return null
+    }
   }
+  const first = await tryRest()
+  if (first) return first
+  await new Promise((r) => setTimeout(r, REST_RETRY_DELAY_MS))
+  const second = await tryRest()
+  if (second) return second
+  return cached ?? null
 }
 
 /** Fetch quotes for multiple symbols (e.g. for portfolio graphs). Uses same cache + REST fallback per symbol. */

@@ -32,15 +32,19 @@ export function useLivePrice(symbol: string, pollIntervalMs: number = 5000): Liv
       const data = await res.json()
       if (!res.ok) {
         setError(data.error ?? `Request failed (${res.status})`)
-        if (res.status === 404) { setPrice(null); setTimestamp(null) }
+        // Keep last price visible so user still sees it; only clear when symbol is wrong (e.g. 400)
+        if (res.status === 400) {
+          setPrice(null)
+          setTimestamp(null)
+        }
         return
       }
       setPrice(data.price)
       setTimestamp(data.timestamp ?? null)
+      setError(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to fetch quote')
-      setPrice(null)
-      setTimestamp(null)
+      // Keep last price on network/transient errors so the UI doesn’t go blank
     } finally {
       setLoading(false)
     }

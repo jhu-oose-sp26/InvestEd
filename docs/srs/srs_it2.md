@@ -19,11 +19,15 @@ Our proposed solution is InvestEd, a web-based simulated trading platform that c
 ### Must haves:
 - As a new or returning trader, I want to create an account and log in securely so that my simulated trades, progress, and strategies are saved and tied to me across sessions.
 - As a beginner investor, I want to buy and sell stocks using real market data with virtual money so that I can practice trading without financial risk.
+    - As a user, I want stock prices to automatically update from a live market data source so that my trades reflect real market conditions.
+    - As a user, I want historical stock prices to be stored and consistently updated so that my portfolio valuation and price history charts are accurate over time.
+    - As a user, I want a real-time quote display and basic price history visualization so that I can easily understand recent market trends before placing trades.
 - As a user who wants to track improvement, I want to see my total portfolio value based on my simulated trades so that I can monitor performance and see how my decisions affect outcomes over time.
 - As a socially engaged user, I want to create or join private friend groups with separate leaderboards so that I can compete directly with people I know to make learning more engaging.
 - As a competitive user, I want to see global leaderboard ranking users by various performance metrics (such as total return percentage, annualized return, portfolio growth rate, etc.) so that rankings reward smart strategy.
 - As a user motivated by comparison, I want to see a leaderboard ranking users by performance so that I can benchmark my results against others.
 - As a socially engaged user, I want to invite friends and engage in educational competition.
+    - As a socially engaged learner, I want to participate in financial statement multiple-choice quiz rounds so that I can improve my financial analysis skills through structured competition.
 
 ### Nice to have:
 - As a user who benefits from structure, I want to participate in daily trading challenges with predefined constraints (ex: tech stocks only, long-only, low-volatility strategy) so that I can explore focused learning goals.

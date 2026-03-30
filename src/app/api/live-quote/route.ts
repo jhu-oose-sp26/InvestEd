@@ -24,14 +24,25 @@ export async function GET(request: NextRequest) {
     }
     const quote = await getLiveQuote(symbol.trim(), apiKey)
     if (!quote) {
-      return NextResponse.json({ error: `No quote for symbol: ${symbol}` }, { status: 404 })
+      return NextResponse.json(
+        {
+          error: `No quote for symbol: ${symbol}. Try again in a moment (data may be delayed).`,
+        },
+        { status: 404 }
+      )
     }
     return NextResponse.json(quote)
   } catch (error) {
     console.error('Live quote API error:', error)
+    const message = error instanceof Error ? error.message : 'Internal server error'
+    const isRateLimit = message.toLowerCase().includes('rate limit')
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
+      {
+        error: isRateLimit
+          ? 'Too many requests to the price service. Please try again in a minute.'
+          : message,
+      },
+      { status: isRateLimit ? 503 : 500 }
     )
   }
 }

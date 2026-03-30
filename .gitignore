@@ -42,3 +42,7 @@ next-env.d.ts
 .venv
 
 .vscode
+
+# generated matchup data
+/mag7_fmp_financials/
+/market_data_pipeline/yfinance_daily/
