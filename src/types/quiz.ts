@@ -4,6 +4,7 @@ export type QuizQuestionCategory =
   | 'comparison'
   | 'stock_implications'
   | 'concept'
+  | 'statement_reading'
 
 export interface QuizQuestion {
   id: string
