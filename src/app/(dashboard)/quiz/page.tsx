@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import type { QuizQuestionsResponse } from "@/types"
 
 type QuizState = "start" | "questions" | "results"
@@ -101,7 +103,15 @@ export default function QuizPage() {
         <div className="border rounded-lg p-6 mb-8">
           {q.context && (
             <div className="mb-6 p-4 rounded-lg bg-muted/50 border border-border">
-              <p className="text-sm text-muted-foreground">{q.context}</p>
+              {q.category === 'statement_reading' ? (
+                <div className="prose prose-sm prose-slate max-w-none dark:prose-invert
+                                prose-table:w-full prose-th:text-left prose-th:font-semibold
+                                prose-td:py-1 prose-th:py-1 prose-p:my-0">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{q.context}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">{q.context}</p>
+              )}
             </div>
           )}
           <h2 className="text-xl font-semibold mb-6">{q.prompt}</h2>
