@@ -1,0 +1,42 @@
+/**
+ * Symbols subscribed on the Finnhub WebSocket when live quotes are used.
+ * `src/lib/live-markets-symbols.ts` re-exports this list for the UI strip.
+ */
+
+export const FINNHUB_WATCHLIST_SYMBOLS = [
+  'AAPL',
+  'MSFT',
+  'NVDA',
+  'AMD',
+  'GOOG',
+  'GOOGL',
+  'META',
+  'AMZN',
+  'AVGO',
+  'ADBE',
+  'PLTR',
+  'TSLA',
+  'NFLX',
+  'CRM',
+  'ORCL',
+  'INTC',
+  'CSCO',
+  'JPM',
+  'BAC',
+  'GS',
+  'MS',
+  'SOFI',
+  'WMT',
+  'COST',
+  'NKE',
+  'SBUX',
+  'MCD',
+  'XOM',
+  'CVX',
+  'BA',
+  'CAT',
+  'UNH',
+  'JNJ',
+  'LLY',
+  'PFE',
+] as const

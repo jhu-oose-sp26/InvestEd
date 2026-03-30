@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test:fetch-price-api": "node --test tests/fetch-price-api.test.mjs",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

@@ -57,6 +57,38 @@
 ## About The Project
 A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
+## Tech Stack
+
+- **Frontend**: Next.js 14 (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
+- **Backend**: Node.js with TypeScript, service-oriented architecture
+- **Database**: PostgreSQL with Prisma ORM
+- **Market Data**: PostgreSQL-backed historical price store; real-time via Finnhub
+
+## Project Structure
+
+```
+InvestEd/
+├── prisma/                  # Database schema & migrations
+│   └── schema.prisma        # User, Trade, and Position models
+├── market_data_pipeline/    # S3 → Postgres historical loader (Python)
+├── src/
+│   ├── app/                 # Next.js App Router (Routing & Layouts)
+│   │   ├── (dashboard)/     # Route group for authenticated user view
+│   │   │   ├── markets/     # Live markets table (real-time prices)
+│   │   │   ├── portfolio/   # Page to track total value and returns
+│   │   │   └── trade/       # Page for buying and selling assets
+│   │   └── api/             # Backend API routes (REST endpoints)
+│   ├── features/            # Domain-driven modules (Core Logic)
+│   │   ├── trading/         # Trade validation & execution engine
+│   │   ├── portfolio/       # P&L calculation & valuation logic
+│   │   └── market-data/     # Postgres quotes + Finnhub live (WebSocket + REST)
+│   ├── components/          # Reusable UI primitives (Buttons, Inputs)
+│   ├── lib/                 # Utility toolkits (Prisma client, Axios config)
+│   └── hooks/               # Custom React hooks (e.g., useLivePrice)
+├── .env                     # Environment variables (API Keys, DB URL)
+└── package.json
+```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
@@ -111,6 +143,8 @@ npm install
     - `FINNHUB_API_KEY` – [Finnhub Dashboard](https://finnhub.io/dashboard). See `finnhub_data_pipeline/REQUIREMENTS.md`.
 
 4. Start Postgres
+3. Start Postgres (from the **project root** — same folder as `docker-compose.yml`):
+
 ```bash
     docker compose up -d
     docker compose logs -f db
@@ -289,6 +323,76 @@ python3 market_data_pipeline/build_report_matchup_data.py --database-url "$DATAB
 > **Custom Quizzes work without step 2–3.** Only the Daily Challenge and Report Matchup APIs require the quarterly data to be loaded.
 
 ---
+### Market Data Provider (`MarketDataProvider.ts`)
+
+Reads latest stored prices per symbol from Postgres (`market_prices`).
+
+### Portfolio Service (`PortfolioService.ts`)
+
+Calculates portfolio valuation from latest stored prices:
+
+- **Latest Stored Pricing**: Fetches latest stored market prices per symbol
+- **P&L Calculation**: Unrealized profit/loss for each position
+- **Portfolio Summary**: Total value, invested amount, and returns
+
+### Real-time data (Finnhub)
+
+Data flow: server keeps one WebSocket to Finnhub and an in-memory cache; when the UI requests a quote, the app returns from cache or the REST Quote API. Change and percent change come from REST (WebSocket stream does not include them). Default WebSocket watchlist: 35 symbols in `src/features/market-data/finnhub/watchlistSymbols.ts`.
+
+## Database Schema
+
+### User
+- `id`: Unique identifier
+- `email`: User email (unique)
+- `cashBalance`: Available cash (Decimal, default $100,000)
+- `createdAt`, `updatedAt`: Timestamps
+
+### Trade
+- `id`: Unique identifier
+- `userId`: Foreign key to User
+- `symbol`: Stock ticker (e.g., "AAPL")
+- `type`: BUY or SELL
+- `quantity`: Number of shares
+- `price`: Price per share at execution
+- `totalValue`: Total trade value
+- `executedAt`: Timestamp
+
+### Position
+- `id`: Unique identifier
+- `userId`: Foreign key to User
+- `symbol`: Stock ticker
+- `quantity`: Current number of shares owned
+- `averageBuyPrice`: Weighted average purchase price
+- `updatedAt`: Last update timestamp
+
+### MarketPrice
+- `symbol`: Stock ticker
+- `asOfDate`: Trading date
+- `open`: Stored open price from your historical pipeline
+- `high`: Stored high price from your historical pipeline
+- `low`: Stored low price from your historical pipeline
+- `close`: Stored close price from your historical pipeline
+- `volume`: Optional volume
+
+## API Routes
+
+### POST `/api/trades`
+Execute a trade (BUY or SELL)
+
+Request body:
+```json
+{
+  "symbol": "AAPL",
+  "type": "BUY",
+  "quantity": 10
+}
+```
+
+### GET `/api/portfolio`
+Get portfolio summary with current valuations
+
+### GET `/api/quote?symbol=AAPL`
+Get latest stored quote (mapped from latest close in `market_prices`)
 
 ## Development
 

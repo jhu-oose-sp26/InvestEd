@@ -34,7 +34,9 @@ InvestEd/
 │   │   ├── portfolio/
 │   │   │   └── PortfolioService.ts # Portfolio valuation & P&L calculation
 │   │   └── market-data/
-│   │       └── MarketDataProvider.ts # Market data provider (Postgres source)
+│   │       ├── MarketDataProvider.ts # Stored quotes (Postgres)
+│   │       ├── executionPrice.ts     # Trade fill price (Finnhub live + Postgres fallback)
+│   │       └── finnhub/              # Finnhub WebSocket + REST (`getLiveQuote`, watchlist)
 │   ├── components/                 # Reusable UI components
 │   │   └── ui/
 │   │       └── button.tsx          # Button component (Shadcn UI style)

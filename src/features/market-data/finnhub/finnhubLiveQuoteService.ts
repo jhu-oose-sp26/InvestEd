@@ -4,7 +4,7 @@
  */
 
 import { fetchFinnhubQuote } from './finnhubRestClient'
-import { ensureSubscribed, getCachedQuote } from './finnhubWebSocketClient'
+import { ensureSubscribed, ensureWatchlistSubscribed, getCachedQuote } from './finnhubWebSocketClient'
 import type { FinnhubLiveQuote } from './types'
 
 const DEFAULT_STALE_MS = 60_000
@@ -17,6 +17,7 @@ export async function getLiveQuote(
 ): Promise<FinnhubLiveQuote | null> {
   const sym = symbol?.trim().toUpperCase()
   if (!sym || !apiKey?.trim()) return null
+  ensureWatchlistSubscribed(apiKey)
   ensureSubscribed(sym, apiKey)
   const cached = getCachedQuote(sym)
   if (cached && Date.now() - cached.timestamp < staleMs) return cached
@@ -44,6 +45,7 @@ export async function getLiveQuotes(
   staleMs: number = DEFAULT_STALE_MS
 ): Promise<FinnhubLiveQuote[]> {
   if (!apiKey?.trim() || !symbols.length) return []
+  ensureWatchlistSubscribed(apiKey)
   const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))]
   const results = await Promise.all(unique.map((sym) => getLiveQuote(sym, apiKey, staleMs)))
   return results.filter((q): q is FinnhubLiveQuote => q != null)
