@@ -79,7 +79,6 @@ A scalable mock trading platform for JHU students to practice trading skills in 
 
 * Node.js 18+ and npm/yarn
 * Docker Desktop (recommended for local Postgres)
-* Python 3.10+ (for S3 ingestion script)
 
 ### Installation
 
@@ -132,19 +131,7 @@ psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_
   -c "INSERT INTO users (id,email,name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
 ```
 
-7. Load market prices from S3:
-
-```bash
-cp market_data_pipeline/.env.s3.example market_data_pipeline/.env.s3
-# Edit .env with your DB values (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DATABASE_URL)
-# Edit market_data_pipeline/.env.s3 with your AWS values (AWS_PROFILE or keys, AWS_REGION, S3_BUCKET, S3_PREFIX)
-set -a
-source .env
-source market_data_pipeline/.env.s3
-set +a
-python3 market_data_pipeline/s3_to_postgres.py --bucket "$S3_BUCKET" --prefix "$S3_PREFIX" --region "$AWS_REGION"
-```
-8. Run the development server:
+7. Run the development server:
 
 ```bash
 npm run dev
@@ -321,19 +308,6 @@ npm run db:migrate
 npm run db:studio
 ```
 
-### Market Data Ingestion
-
-Use the S3-to-Postgres loader to populate `market_prices`:
-
-```bash
-python3 market_data_pipeline/s3_to_postgres.py \
-  --bucket your-bucket-name \
-  --prefix historical/daily/ \
-  --region us-east-2
-```
-
-For details and dry-run examples, see `market_data_pipeline/README.md`.
-
 ### Code Structure
 
 - **Features**: Domain-specific logic organized by feature (trading, portfolio, market-data)
@@ -345,8 +319,7 @@ For details and dry-run examples, see `market_data_pipeline/README.md`.
 
 1. **Authentication**: Implement user authentication (NextAuth.js recommended)
 2. **Shadcn UI Components**: Add more UI components from Shadcn UI library
-3. **Historical Data Pipeline**: Automate ingest from S3 into `market_prices`
-4. **Testing**: Add unit and integration tests
+3. **Testing**: Add unit and integration tests
 5. **Error Boundaries**: Add React error boundaries for better error handling
 6. **Type Safety**: Enhance TypeScript types and validation
 
