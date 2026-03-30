@@ -13,11 +13,11 @@ export class PostgresMarketDataProvider implements MarketDataProvider {
   async getQuote(symbol: string): Promise<Quote> {
     const latestPrice = await prisma.marketPrice.findFirst({
       where: { symbol: symbol },
-      orderBy: { asOfDate: 'desc' },
+      orderBy: { timestamp: 'desc' },
       select: {
         symbol: true,
         close: true,
-        asOfDate: true,
+        timestamp: true,
       },
     })
 
@@ -28,7 +28,7 @@ export class PostgresMarketDataProvider implements MarketDataProvider {
     return {
       symbol: latestPrice.symbol,
       price: latestPrice.close.toNumber(),
-      timestamp: latestPrice.asOfDate.getTime(),
+      timestamp: latestPrice.timestamp.getTime(),
     }
   }
 
@@ -37,11 +37,11 @@ export class PostgresMarketDataProvider implements MarketDataProvider {
       symbols.map((symbol) =>
         prisma.marketPrice.findFirst({
           where: { symbol },
-          orderBy: { asOfDate: 'desc' },
+          orderBy: { timestamp: 'desc' },
           select: {
             symbol: true,
             close: true,
-            asOfDate: true,
+            timestamp: true,
           },
         })
       )
@@ -52,7 +52,7 @@ export class PostgresMarketDataProvider implements MarketDataProvider {
       .map((row) => ({
         symbol: row.symbol,
         price: row.close.toNumber(),
-        timestamp: row.asOfDate.getTime(),
+        timestamp: row.timestamp.getTime(),
       }))
   }
 }

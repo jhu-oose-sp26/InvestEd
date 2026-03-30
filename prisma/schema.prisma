@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["tracing"]
 }
 
 datasource db {
@@ -18,8 +19,9 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   
-  trades       Trade[]
-  positions    Position[]
+  trades        Trade[]
+  positions     Position[]
+  customQuizzes CustomQuiz[]
 
   @@map("users")
 }
@@ -58,18 +60,72 @@ model Position {
 }
 
 model MarketPrice {
-  id       String   @id @default(cuid())
-  symbol   String
-  asOfDate DateTime @map("as_of_date") @db.Date
-  open     Decimal  @db.Decimal(15, 6)
-  high     Decimal  @db.Decimal(15, 6)
-  low      Decimal  @db.Decimal(15, 6)
-  close    Decimal  @db.Decimal(15, 6)
-  volume   BigInt?
+  id        String   @id @default(cuid())
+  symbol    String
+  timestamp DateTime // Full timestamp for intraday precision
+  timeframe String   @default("1Min") // Bar interval: "1Min", "5Min", "15Min", etc.
+  open      Decimal  @db.Decimal(15, 6)
+  high      Decimal  @db.Decimal(15, 6)
+  low       Decimal  @db.Decimal(15, 6)
+  close     Decimal  @db.Decimal(15, 6)
+  volume    BigInt?
+  vwap      Decimal? @db.Decimal(15, 6) // Volume-weighted average price
+  tradeCount Int?    @map("trade_count")  // Number of trades in the bar
 
-  @@unique([symbol, asOfDate])
-  @@index([symbol, asOfDate])
-  @@map("market_prices")
+  @@unique([symbol, timestamp, timeframe])
+  @@index([symbol, timestamp])
+  @@map("market_prices_realtime")
+}
+
+model QuarterlyReport {
+  id            String   @id @default(cuid())
+  symbol        String
+  quarter       String   // e.g., "2024-Q2"
+  statementDate String   // ISO date string, e.g., "2024-06-30"
+  releaseDate   String   // ISO date string
+  statements    Json     // { income: {...}, balance: {...}, cashflow: {...} }
+  performance   Json     // PerformanceWindow shape
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([symbol, quarter])
+  @@index([symbol])
+  @@index([quarter])
+  @@map("quarterly_reports")
+}
+
+model CustomQuiz {
+  id          String              @id @default(cuid())
+  title       String              @db.VarChar(200)
+  description String?             @db.VarChar(1000)
+  userId      String
+  isPublic    Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions   CustomQuizQuestion[]
+
+  @@index([userId])
+  @@index([isPublic])
+  @@map("custom_quizzes")
+}
+
+model CustomQuizQuestion {
+  id            String     @id @default(cuid())
+  quizId        String
+  prompt        String     @db.VarChar(2000)
+  options       Json       // string[] — array of answer option strings
+  correctAnswer String     @db.VarChar(2000)
+  context       String?    @db.VarChar(4000)
+  order         Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  quiz          CustomQuiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+  @@map("custom_quiz_questions")
 }
 
 enum TradeType {

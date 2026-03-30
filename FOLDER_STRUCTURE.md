@@ -47,6 +47,11 @@ InvestEd/
 │       ├── useLivePrice.ts         # Single-symbol live price (trade page, tickers)
 │       └── useLiveQuotes.ts         # Multi-symbol (portfolio graphs, dashboards)
 ├── .env.example                    # Environment variables template
+├── finnhub_data_pipeline/
+│   └── index.ts                    # `@finnhub-data-pipeline` barrel (re-exports src/features/.../finnhub)
+├── alpaca_data_pipeline/           # Alpaca 1m bars (TS) for charts / Prisma ingest
+├── candle_supabase_pipeline/       # Supabase load: Alpaca 1m bars + Finnhub /quote snapshots
+├── supabase/migrations/            # SQL for market_candles + market_quote_snapshots
 ├── market_data_pipeline/           # S3 to Postgres ingestion scripts
 │   ├── s3_to_postgres.py           # Loads OHLCV CSV from S3 into market_prices
 │   ├── .env.s3.example             # Team template for local AWS/S3 env

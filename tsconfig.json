@@ -25,6 +25,24 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@finnhub-data-pipeline": [
+        "./finnhub_data_pipeline"
+      ],
+      "@finnhub-data-pipeline/*": [
+        "./finnhub_data_pipeline/*"
+      ],
+      "@alpaca-data-pipeline": [
+        "./alpaca_data_pipeline"
+      ],
+      "@alpaca-data-pipeline/*": [
+        "./alpaca_data_pipeline/*"
+      ],
+      "@candle-supabase-pipeline": [
+        "./candle_supabase_pipeline"
+      ],
+      "@candle-supabase-pipeline/*": [
+        "./candle_supabase_pipeline/*"
       ]
     }
   },
@@ -33,7 +51,10 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "finnhub_data_pipeline/**/*.ts",
+    "alpaca_data_pipeline/**/*.ts",
+    "candle_supabase_pipeline/**/*.ts"
   ],
   "exclude": [
     "node_modules"
