@@ -53,6 +53,8 @@ InvestEd/
 │   ├── index.ts                    # Public API for app & graphs
 │   ├── REQUIREMENTS.md             # API key, WebSocket vs REST, where data is stored, UI (strip, Markets)
 │   └── README.md                   # Overview
+├── candle_supabase_pipeline/       # Supabase load: Alpaca 1m bars + Finnhub /quote snapshots
+├── supabase/migrations/            # SQL for market_candles + market_quote_snapshots
 ├── market_data_pipeline/           # S3 to Postgres ingestion scripts
 │   ├── s3_to_postgres.py           # Loads OHLCV CSV from S3 into market_prices
 │   ├── .env.s3.example             # Team template for local AWS/S3 env
