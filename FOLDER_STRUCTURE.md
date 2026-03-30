@@ -34,7 +34,9 @@ InvestEd/
 │   │   ├── portfolio/
 │   │   │   └── PortfolioService.ts # Portfolio valuation & P&L calculation
 │   │   └── market-data/
-│   │       └── MarketDataProvider.ts # Market data provider (Postgres source)
+│   │       ├── MarketDataProvider.ts # Stored quotes (Postgres)
+│   │       ├── executionPrice.ts     # Trade fill price (Finnhub live + Postgres fallback)
+│   │       └── finnhub/              # Finnhub WebSocket + REST (`getLiveQuote`, watchlist)
 │   ├── components/                 # Reusable UI components
 │   │   └── ui/
 │   │       └── button.tsx          # Button component (Shadcn UI style)
@@ -45,14 +47,6 @@ InvestEd/
 │       ├── useLivePrice.ts         # Single-symbol live price (trade page, tickers)
 │       └── useLiveQuotes.ts         # Multi-symbol (portfolio graphs, dashboards)
 ├── .env.example                    # Environment variables template
-├── finnhub_data_pipeline/          # Finnhub real-time (WebSocket + REST)
-│   ├── types.ts                    # Finnhub API types
-│   ├── finnhubRestClient.ts        # REST Quote client
-│   ├── finnhubWebSocketClient.ts   # WebSocket trade stream + cache
-│   ├── finnhubLiveQuoteService.ts  # getLiveQuote / getLiveQuotes
-│   ├── index.ts                    # Public API for app & graphs
-│   ├── REQUIREMENTS.md             # API key, WebSocket vs REST, where data is stored, UI (strip, Markets)
-│   └── README.md                   # Overview
 ├── market_data_pipeline/           # S3 to Postgres ingestion scripts
 │   ├── s3_to_postgres.py           # Loads OHLCV CSV from S3 into market_prices
 │   ├── .env.s3.example             # Team template for local AWS/S3 env

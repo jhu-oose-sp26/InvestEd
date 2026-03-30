@@ -6,6 +6,7 @@
 
 import WebSocket from 'ws'
 import type { FinnhubTradeMessage, FinnhubLiveQuote } from './types'
+import { FINNHUB_WATCHLIST_SYMBOLS } from './watchlistSymbols'
 
 const WS_URL = 'wss://ws.finnhub.io'
 const quoteCache = new Map<string, FinnhubLiveQuote>()
@@ -55,13 +56,31 @@ function connect(apiKey: string): WebSocket {
   return socket
 }
 
+/**
+ * Register one symbol: add to subscription set and open socket if needed.
+ * Does not close a CONNECTING socket (avoids breaking batch subscribe).
+ */
 export function ensureSubscribed(symbol: string, apiKey: string): void {
   if (!apiKey?.trim()) return
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
+  const needNewSocket = !ws || ws.readyState === WebSocket.CLOSED
+  if (needNewSocket) {
     if (ws) try { ws.close() } catch { /* ignore */ }
     ws = connect(apiKey)
   }
-  subscribe(ws, symbol)
+  subscribe(ws!, symbol)
+}
+
+/** Subscribe the full watchlist (idempotent). Call when serving live quotes so WS receives trades for all symbols. */
+export function ensureWatchlistSubscribed(apiKey: string): void {
+  if (!apiKey?.trim()) return
+  for (const sym of FINNHUB_WATCHLIST_SYMBOLS) {
+    ensureSubscribed(sym, apiKey)
+  }
+}
+
+/** Current subscription set (for debugging / admin tools). */
+export function getSubscribedSymbols(): string[] {
+  return [...subscribedSymbols].sort()
 }
 
 export function getCachedQuote(symbol: string): FinnhubLiveQuote | null {

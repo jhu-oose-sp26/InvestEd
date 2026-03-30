@@ -4,7 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getLiveQuote } from '@finnhub-data-pipeline'
+import { getLiveQuote } from '@/features/market-data/finnhub'
+
+/** Finnhub client uses Node `ws`; must not run on Edge. */
+export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {

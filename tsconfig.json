@@ -25,12 +25,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@finnhub-data-pipeline": [
-        "./finnhub_data_pipeline"
-      ],
-      "@finnhub-data-pipeline/*": [
-        "./finnhub_data_pipeline/*"
       ]
     }
   },
@@ -39,8 +33,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "finnhub_data_pipeline/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

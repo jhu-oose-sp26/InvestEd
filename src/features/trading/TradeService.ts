@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma'
+import type { PrismaClient } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
+
+type PrismaTransactionClient = Omit<
+  PrismaClient,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>
 import { z } from 'zod'
 import type { ExecuteTradeInput, TradeResult } from '@/types'
 
@@ -42,7 +48,7 @@ export class TradeService {
 
     try {
       // Execute trade within a transaction
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
         // Lock user row for update to prevent concurrent modifications
         const user = await tx.user.findUnique({
           where: { id: userId },

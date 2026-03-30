@@ -23,17 +23,17 @@
 ### 3. Rate limits (Finnhub)
 
 - **30 API calls/second** (across all endpoints).
-- **1 WebSocket connection per API key** – this pipeline uses a single shared connection and subscribes to symbols on demand.
+- **1 WebSocket connection per API key** – this integration uses a single shared connection and subscribes to symbols on demand.
 - On 429, REST client throws; service returns cached quote if available.
 
 ### 4. TypeScript
 
-- **Path alias**: `@finnhub-data-pipeline` and `@finnhub-data-pipeline/*` must point to `./finnhub_data_pipeline` in `tsconfig.json`.
-- **Include**: `finnhub_data_pipeline/**/*.ts` in `include` so the pipeline is compiled.
+- Code lives under **`src/features/market-data/finnhub/`** and is included via the normal `src/**/*.ts` compile.
+- Import the public API with **`@/features/market-data/finnhub`** (see `tsconfig.json` paths `@/*` → `./src/*`).
 
 ## Public API (for app, graphs, UI)
 
-Import from `@finnhub-data-pipeline`:
+Import from `@/features/market-data/finnhub`:
 
 - **`getLiveQuote(symbol, apiKey, staleMs?)`** – single symbol; returns `FinnhubLiveQuote | null`.
 - **`getLiveQuotes(symbols, apiKey, staleMs?)`** – multiple symbols; returns `FinnhubLiveQuote[]` (for portfolio graphs, dashboards).
@@ -52,10 +52,9 @@ Import from `@finnhub-data-pipeline`:
 - **`useLivePrice(symbol, pollIntervalMs?)`** – one symbol; returns `{ price, timestamp, loading, error, refetch }`. Use on trade page, detail views, single-asset charts.
 - **`useLiveQuotes(symbols, pollIntervalMs?)`** – multiple symbols; returns `{ quotes, loading, error, refetch }`. Use for portfolio value charts, multi-symbol dashboards, comparison graphs.
 
-## WebSocket vs REST (why both)
 
 - **WebSocket (server ↔ Finnhub)**  
-  One connection to `wss://ws.finnhub.io`. Trade messages stream in real time; each message has symbol, price, timestamp, volume. The pipeline updates an **in-memory cache** (symbol → latest price) on every trade. Used for fast, live price updates.
+  One connection to `wss://ws.finnhub.io`. Trade messages stream in real time; each message has symbol, price, timestamp, volume. The integration updates an **in-memory cache** (symbol → latest price) on every trade. Used for fast, live price updates.
 
 - **REST (server → Finnhub)**  
   `GET /quote?symbol=X` returns current price **and** change from previous close (`d`) and percent change (`dp`). The WebSocket trade stream does **not** include change or %; those fields exist only in the REST response. REST is also used when the cache is empty or stale (e.g. symbol just added, or no trades in 60s).
@@ -64,14 +63,14 @@ Import from `@finnhub-data-pipeline`:
 
 ## Where data is stored
 
-- **In-memory only**: The pipeline stores the latest quote per symbol in a `Map` inside `finnhubWebSocketClient.ts`. Nothing is written to Postgres or disk. Cache is lost on server restart.
+- **In-memory only**: The latest quote per symbol is stored in a `Map` inside `finnhubWebSocketClient.ts`. Nothing is written to Postgres or disk. Cache is lost on server restart.
 - **Postgres**: Used for users, trades, positions, and historical `market_prices` (S3 pipeline). Finnhub live quotes are not persisted.
 
 ## Data flow
 
 1. **Browser** polls `GET /api/live-quote?symbol=X` or `GET /api/live-quotes?symbols=X,Y` (e.g. every 3s from the live strip or Markets page).
-2. **API route** reads `FINNHUB_API_KEY`, calls `getLiveQuote` / `getLiveQuotes` from the pipeline.
-3. **Pipeline** subscribes symbols to the Finnhub WebSocket (if not already), checks the cache. If cache has a fresh quote (< 60s), return it (price only; no change/% from WS). Otherwise call REST Quote, return full quote (price, change, percentChange), and cache is updated by WebSocket as trades arrive.
+2. **API route** reads `FINNHUB_API_KEY`, calls `getLiveQuote` / `getLiveQuotes`.
+3. **Integration** subscribes symbols to the Finnhub WebSocket (if not already), checks the cache. If cache has a fresh quote (< 60s), return it (price only; no change/% from WS). Otherwise call REST Quote, return full quote (price, change, percentChange), and cache is updated by WebSocket as trades arrive.
 
 ## UI: Live strip and Markets page
 
