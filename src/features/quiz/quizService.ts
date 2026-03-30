@@ -368,12 +368,166 @@ const CONCEPTUAL_QUESTIONS: QuizQuestion[] = [
   },
 ]
 
+// --- Statement reading helpers ---
+
+function incomeStatementContext(report: QuarterlyReportRecord, revenue: number, grossProfit: number, netIncome: number): string {
+  return [
+    `**${report.symbol} — ${report.quarter} Income Statement**`,
+    '',
+    '| Metric | Value |',
+    '|--------|-------|',
+    `| Revenue | ${formatBillions(revenue)} |`,
+    `| Gross Profit | ${formatBillions(grossProfit)} |`,
+    `| Net Income | ${formatBillions(netIncome)} |`,
+  ].join('\n')
+}
+
+function cashFlowContext(report: QuarterlyReportRecord, ocf: number, fcf: number): string {
+  return [
+    `**${report.symbol} — ${report.quarter} Cash Flow Statement**`,
+    '',
+    '| Metric | Value |',
+    '|--------|-------|',
+    `| Operating Cash Flow | ${formatBillions(ocf)} |`,
+    `| Free Cash Flow | ${fcf < 0 ? `-${formatBillions(Math.abs(fcf))}` : formatBillions(fcf)} |`,
+  ].join('\n')
+}
+
+function revenueComparisonContext(symbol: string, prevQuarter: string, prevRev: number, currQuarter: string, currRev: number): string {
+  return [
+    `**${symbol} — Revenue Comparison**`,
+    '',
+    '| Quarter | Revenue |',
+    '|---------|---------|',
+    `| ${prevQuarter} | ${formatBillions(prevRev)} |`,
+    `| ${currQuarter} | ${formatBillions(currRev)} |`,
+  ].join('\n')
+}
+
+/** Type A: gross margin computation from income statement */
+function buildGrossMarginQuestion(report: QuarterlyReportRecord): QuizQuestion | null {
+  const revenue = getNumericValue(report, 'revenue', 'income')
+  const grossProfit = getNumericValue(report, 'grossProfit', 'income')
+  const netIncome = getNumericValue(report, 'netIncome', 'income')
+  if (revenue == null || grossProfit == null || netIncome == null || revenue <= 0) return null
+
+  const correct = Math.round((grossProfit / revenue) * 100)
+  const netMargin = Math.round((netIncome / revenue) * 100)
+
+  return {
+    id: `stmtr-gm-${report.symbol}-${report.quarter}-${hashString(`stmtrgm${report.symbol}${report.quarter}`).toString(36)}`,
+    category: 'statement_reading',
+    type: 'interpretation',
+    context: incomeStatementContext(report, revenue, grossProfit, netIncome),
+    prompt: `Based on the income statement above, what is ${report.symbol}'s approximate gross margin for ${report.quarter}?`,
+    options: [`~${correct}%`, `~${correct + 8}%`, `~${correct - 7}%`, `~${netMargin}%`],
+    correctAnswer: `~${correct}%`,
+    quarter: report.quarter,
+  }
+}
+
+/** Type B: FCF sign and implication from cash flow statement */
+function buildFcfSignQuestion(report: QuarterlyReportRecord): QuizQuestion | null {
+  const ocf = getNumericValue(report, 'operatingCashFlow', 'cashflow')
+  const fcf = getNumericValue(report, 'freeCashFlow', 'cashflow')
+  if (ocf == null || fcf == null) return null
+
+  const positive = fcf >= 0
+  const correctAnswer = positive
+    ? 'Positive — the business generates cash after capital expenditures'
+    : 'Negative — capital expenditures exceed operating cash flow'
+
+  return {
+    id: `stmtr-fcf-${report.symbol}-${report.quarter}-${hashString(`stmtrfcf${report.symbol}${report.quarter}`).toString(36)}`,
+    category: 'statement_reading',
+    type: 'interpretation',
+    context: cashFlowContext(report, ocf, fcf),
+    prompt: `Based on the cash flow statement above, is ${report.symbol}'s free cash flow positive or negative, and what does it indicate?`,
+    options: [
+      'Positive — the business generates cash after capital expenditures',
+      'Negative — capital expenditures exceed operating cash flow',
+      'Positive — the company has no debt obligations',
+      'Negative — the company is reporting a net loss',
+    ],
+    correctAnswer,
+    quarter: report.quarter,
+  }
+}
+
+/** Type C: quarter-over-quarter revenue growth for consecutive quarters of the same symbol */
+function buildQoqRevenueQuestions(symbolReports: QuarterlyReportRecord[]): QuizQuestion[] {
+  const sorted = [...symbolReports].sort((a, b) => {
+    const pa = a.quarter.match(/^(\d{4})-Q(\d)$/)
+    const pb = b.quarter.match(/^(\d{4})-Q(\d)$/)
+    if (!pa || !pb) return 0
+    return Number(pa[1]) * 4 + Number(pa[2]) - (Number(pb[1]) * 4 + Number(pb[2]))
+  })
+
+  const questions: QuizQuestion[] = []
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1]
+    const curr = sorted[i]
+    const prevRev = getNumericValue(prev, 'revenue', 'income')
+    const currRev = getNumericValue(curr, 'revenue', 'income')
+    if (prevRev == null || currRev == null || prevRev <= 0) continue
+
+    const grew = currRev >= prevRev
+    const pct = Math.abs(Math.round(((currRev - prevRev) / prevRev) * 100))
+    const correctAnswer = grew
+      ? `Grew — up ~${pct}% quarter-over-quarter`
+      : `Shrank — down ~${pct}% quarter-over-quarter`
+
+    questions.push({
+      id: `stmtr-qoq-${curr.symbol}-${curr.quarter}-${hashString(`stmtrqoq${curr.symbol}${curr.quarter}`).toString(36)}`,
+      category: 'statement_reading',
+      type: 'interpretation',
+      context: revenueComparisonContext(curr.symbol, prev.quarter, prevRev, curr.quarter, currRev),
+      prompt: `Based on the table above, did ${curr.symbol}'s revenue grow or shrink from ${prev.quarter} to ${curr.quarter}?`,
+      options: [
+        `Grew — up ~${pct}% quarter-over-quarter`,
+        `Shrank — down ~${pct}% quarter-over-quarter`,
+        'Revenue stayed exactly flat',
+        'Cannot be determined from the data shown',
+      ],
+      correctAnswer,
+      quarter: curr.quarter,
+    })
+  }
+  return questions
+}
+
+/** Orchestrates all statement_reading question types */
+function buildStatementReadingQuestions(reports: QuarterlyReportRecord[]): QuizQuestion[] {
+  const questions: QuizQuestion[] = []
+
+  for (const report of reports) {
+    const gmQ = buildGrossMarginQuestion(report)
+    if (gmQ) questions.push(gmQ)
+
+    const fcfQ = buildFcfSignQuestion(report)
+    if (fcfQ) questions.push(fcfQ)
+  }
+
+  const bySymbol = new Map<string, QuarterlyReportRecord[]>()
+  for (const r of reports) {
+    const list = bySymbol.get(r.symbol) || []
+    list.push(r)
+    bySymbol.set(r.symbol, list)
+  }
+  for (const symbolReports of bySymbol.values()) {
+    questions.push(...buildQoqRevenueQuestions(symbolReports))
+  }
+
+  return questions
+}
+
 const CATEGORIES: QuizQuestion['category'][] = [
   'profitability',
   'cash_flow',
   'comparison',
   'stock_implications',
   'concept',
+  'statement_reading',
 ]
 
 export async function getDailyQuestions(dateStr: string): Promise<{ date: string; questions: QuizQuestion[] }> {
@@ -382,7 +536,8 @@ export async function getDailyQuestions(dateStr: string): Promise<{ date: string
   try {
     const dataset = await loadDataset()
     const dataQuestions = buildDataInterpretationQuestions(dataset.reports)
-    allQuestions = [...dataQuestions, ...CONCEPTUAL_QUESTIONS]
+    const statementQuestions = buildStatementReadingQuestions(dataset.reports)
+    allQuestions = [...dataQuestions, ...statementQuestions, ...CONCEPTUAL_QUESTIONS]
   } catch {
     allQuestions = [...CONCEPTUAL_QUESTIONS]
   }
