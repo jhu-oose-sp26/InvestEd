@@ -1,5 +1,5 @@
 import { fetchBarsFromAlpaca } from '@alpaca-data-pipeline/alpacaBarsApi'
-import { fetchFinnhubQuoteSnapshot } from '@finnhub-data-pipeline'
+import { fetchFinnhubQuoteSnapshot } from '@/features/market-data/finnhub'
 import { alpacaBarsToRows, finnhubQuoteSnapshotToRow } from './normalize'
 import { getSupabaseServiceClient } from './supabaseAdmin'
 import type { SyncCandlesResult } from './types'

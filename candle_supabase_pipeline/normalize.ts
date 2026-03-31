@@ -1,5 +1,5 @@
 import type { AlpacaBar } from '@alpaca-data-pipeline/alpacaBarsApi'
-import type { FinnhubQuoteSnapshot } from '@finnhub-data-pipeline'
+import type { FinnhubQuoteSnapshot } from '@/features/market-data/finnhub'
 import type { CandleSource, MarketCandleRow, MarketQuoteSnapshotRow } from './types'
 
 export function alpacaBarsToRows(symbol: string, bars: AlpacaBar[], source: CandleSource = 'alpaca'): MarketCandleRow[] {
