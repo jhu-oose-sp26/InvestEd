@@ -138,9 +138,11 @@ npm install
     - `POSTGRES_USER`
     - `POSTGRES_PASSWORD`
     - `POSTGRES_DB`
-
-    Optional (real-time quotes, live strip, Markets page):
-    - `FINNHUB_API_KEY` – [Finnhub Dashboard](https://finnhub.io/dashboard). See `finnhub_data_pipeline/REQUIREMENTS.md`.
+    - `HOST`
+    - `PORT`
+    - `FINNHUB_API_KEY` 
+    - `ALPAKA_API_KEY`
+    - `ALPAKA_API_SECRET`
 
 4. Start Postgres
 3. Start Postgres (from the **project root** — same folder as `docker-compose.yml`):
