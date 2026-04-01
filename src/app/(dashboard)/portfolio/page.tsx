@@ -188,7 +188,7 @@ export default function PortfolioPage() {
                 tick={{ fontSize: 12 }}
               />
               <Tooltip
-                formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                formatter={(value: any) => formatCurrency(Number(value) || 0)}
                 labelFormatter={(label) =>
                   typeof label === "number"
                     ? new Date(label).toLocaleString(undefined, {
@@ -246,7 +246,7 @@ export default function PortfolioPage() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                formatter={(value: any) => formatCurrency(Number(value) || 0)}
                 contentStyle={{ borderRadius: "8px" }}
               />
               <Legend />
@@ -285,7 +285,7 @@ export default function PortfolioPage() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number | undefined) => formatCurrency(value ?? 0)}
+                formatter={(value: any) => formatCurrency(Number(value) || 0)}
                 contentStyle={{ borderRadius: '8px' }}
               />
               <Legend />
