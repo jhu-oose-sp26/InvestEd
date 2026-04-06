@@ -4,9 +4,9 @@ import { useLiveQuotes } from "@/hooks/useLiveQuotes"
 import { DEFAULT_LIVE_MARKETS_SYMBOLS } from "@/lib/live-markets-symbols"
 
 /** Poll interval for live prices (ms). Kept high to avoid Finnhub rate limits. */
-const POLL_INTERVAL_MS = 12000
+const POLL_INTERVAL_MS = 60000
 
-const SYMBOLS = [...DEFAULT_LIVE_MARKETS_SYMBOLS]
+const SYMBOLS = DEFAULT_LIVE_MARKETS_SYMBOLS.slice(0, 10)
 
 export function LiveMarketsStrip() {
   const { quotes, loading, error } = useLiveQuotes(SYMBOLS, POLL_INTERVAL_MS)
@@ -14,7 +14,7 @@ export function LiveMarketsStrip() {
   if (error) {
     return (
       <div className="border-b bg-muted/30 px-4 py-2 text-center text-sm text-muted-foreground">
-        Live prices unavailable. Set FINNHUB_API_KEY in .env for real-time data.
+        {String(error)}
       </div>
     )
   }
