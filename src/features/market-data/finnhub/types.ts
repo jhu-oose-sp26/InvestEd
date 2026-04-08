@@ -36,9 +36,9 @@ export interface FinnhubLiveQuote {
   price: number
   timestamp: number
   volume?: number
-  /** Change from previous close (from REST; not in WS trade stream) */
+  /** Change vs previous close: from REST or derived from WS price + cached `pc` */
   change?: number
-  /** Percent change from previous close (from REST) */
+  /** Percent change vs previous close: from REST or derived from WS price + cached `pc` */
   percentChange?: number
 }
 

@@ -20,10 +20,18 @@ interface TradeChartProps {
   livePrice: number | null
 }
 
+/** Shift a UTC unix-seconds timestamp so lightweight-charts renders it as local time. */
+function toLocalChartTime(utcSeconds: number): Time {
+  const offsetSeconds = new Date(utcSeconds * 1000).getTimezoneOffset() * 60
+  return (utcSeconds - offsetSeconds) as Time
+}
+
 export function TradeChart({ symbol, historicalBars, livePrice }: TradeChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
   const chartRef = useRef<any>(null)
+  // Tracks the accumulated OHLC for the current live candle so we don't lose high/low across ticks
+  const liveCandleRef = useRef<{ intervalUnix: number; open: number; high: number; low: number; close: number } | null>(null)
 
   // 1) Initialize Chart and Base Data
   useEffect(() => {
@@ -67,7 +75,7 @@ export function TradeChart({ symbol, historicalBars, livePrice }: TradeChartProp
     // Load initial data
     if (historicalBars.length > 0) {
       const formattedBars: CandlestickData[] = historicalBars.map((b) => ({
-        time: (new Date(b.t).getTime() / 1000) as Time,
+        time: toLocalChartTime(Math.floor(new Date(b.t).getTime() / 1000)),
         open: b.o,
         high: b.h,
         low: b.l,
@@ -109,22 +117,41 @@ export function TradeChart({ symbol, historicalBars, livePrice }: TradeChartProp
 
     if (currentMinUnix > lastBarTimeUnix) {
       // The current time has rolled over into a new 15-minute chunk that hasn't arrived via historicals yet.
-      // e.g., last historical is 14:00, it's now 14:15. We start a fresh unfinalized 14:15 candle.
+      const liveCandle = liveCandleRef.current
+
+      if (!liveCandle || liveCandle.intervalUnix !== currentMinUnix) {
+        // First tick in a new interval — initialize the candle
+        liveCandleRef.current = {
+          intervalUnix: currentMinUnix,
+          open: lastBarOrigin.c,
+          high: Math.max(lastBarOrigin.c, livePrice),
+          low: Math.min(lastBarOrigin.c, livePrice),
+          close: livePrice,
+        }
+      } else {
+        // Subsequent tick — accumulate high/low
+        liveCandle.high = Math.max(liveCandle.high, livePrice)
+        liveCandle.low = Math.min(liveCandle.low, livePrice)
+        liveCandle.close = livePrice
+      }
+
+      const c = liveCandleRef.current!
       updateData = {
-        time: currentMinUnix as Time,
-        open: lastBarOrigin.c,          // Assume previous close is our start
-        high: Math.max(lastBarOrigin.c, livePrice),
-        low: Math.min(lastBarOrigin.c, livePrice),
-        close: livePrice
+        time: toLocalChartTime(currentMinUnix),
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
       }
     } else {
-       // Our live tick is inside the very last historical minute. Overwrite it actively.
+       // Our live tick is inside the very last historical bar's interval.
+       // Anchor to the historical OHLC (already finalized high/low) and extend with live price.
        updateData = {
-         time: lastBarTimeUnix as Time,
+         time: toLocalChartTime(lastBarTimeUnix),
          open: lastBarOrigin.o,
          high: Math.max(lastBarOrigin.h, livePrice),
          low: Math.min(lastBarOrigin.l, livePrice),
-         close: livePrice
+         close: livePrice,
        }
     }
 

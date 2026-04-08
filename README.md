@@ -57,18 +57,14 @@
 ## About The Project
 A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
+## Tech Stack
 
-### Built With
+- **Frontend**: Next.js (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
+- **Backend**: Node.js with TypeScript, service-oriented architecture
+- **Database**: PostgreSQL with Prisma ORM
+- **Market Data**: PostgreSQL-backed historical price store; real-time via Finnhub
 
-* Next.js
-* Node.js
-* TypeScript
-* Tailwind CSS
-* Shadcn UI
-* PostgreSQL with Prisma ORM
-* PostgreSQL-backed historical price store
-* Real-time data via Finnhub
+## Project Structure
 
 ```
 InvestEd/
@@ -133,11 +129,13 @@ npm install
     Optional (real-time quotes, live strip, Markets page):
     - `FINNHUB_API_KEY` – [Finnhub Dashboard](https://finnhub.io/dashboard). See `src/features/market-data/finnhub/REQUIREMENTS.md`.
 
-4. Start Postgres
+4. Start Postgres (from the **project root** — same folder as `docker-compose.yml`):
+
 ```bash
-    docker compose up -d
-    docker compose logs -f db
-  ```
+docker compose up -d
+docker compose logs -f db
+```
+
 5. Set up the database schema:
 
 ```bash
@@ -213,7 +211,7 @@ See the [open issues](https://github.com/jhu-oose-sp26/InvestEd/issues) for a fu
 
 ### Finnhub real-time data flow
 
-The server keeps one WebSocket to Finnhub and an in-memory cache; when the UI requests a quote, the app returns from cache or the REST Quote API. Change and percent change come from REST (the WebSocket trade stream does not include them). The default WebSocket watchlist is defined in `src/features/market-data/finnhub/watchlistSymbols.ts`.
+The server keeps one WebSocket to Finnhub and an in-memory trade cache. Previous close is cached from an occasional REST `/quote` response; change and percent change are derived from the latest WebSocket price vs that previous close (reducing repeated `/quote` calls). The default WebSocket watchlist is defined in `src/features/market-data/finnhub/watchlistSymbols.ts`.
 
 <!-- CONTRIBUTING
 ## Contributing
@@ -317,6 +315,76 @@ python3 market_data_pipeline/build_report_matchup_data.py --database-url "$DATAB
 > **Custom Quizzes work without step 2–3.** Only the Daily Challenge and Report Matchup APIs require the quarterly data to be loaded.
 
 ---
+### Market Data Provider (`MarketDataProvider.ts`)
+
+Reads latest stored prices per symbol from Postgres (`market_prices`).
+
+### Portfolio Service (`PortfolioService.ts`)
+
+Calculates portfolio valuation from latest stored prices:
+
+- **Latest Stored Pricing**: Fetches latest stored market prices per symbol
+- **P&L Calculation**: Unrealized profit/loss for each position
+- **Portfolio Summary**: Total value, invested amount, and returns
+
+### Real-time data (Finnhub)
+
+Data flow: WebSocket trade stream for price updates; previous close is seeded from REST and reused so change / % move vs prior close stay accurate without polling `/quote` every request. Default WebSocket watchlist: `src/features/market-data/finnhub/watchlistSymbols.ts`.
+
+## Database Schema
+
+### User
+- `id`: Unique identifier
+- `email`: User email (unique)
+- `cashBalance`: Available cash (Decimal, default $100,000)
+- `createdAt`, `updatedAt`: Timestamps
+
+### Trade
+- `id`: Unique identifier
+- `userId`: Foreign key to User
+- `symbol`: Stock ticker (e.g., "AAPL")
+- `type`: BUY or SELL
+- `quantity`: Number of shares
+- `price`: Price per share at execution
+- `totalValue`: Total trade value
+- `executedAt`: Timestamp
+
+### Position
+- `id`: Unique identifier
+- `userId`: Foreign key to User
+- `symbol`: Stock ticker
+- `quantity`: Current number of shares owned
+- `averageBuyPrice`: Weighted average purchase price
+- `updatedAt`: Last update timestamp
+
+### MarketPrice
+- `symbol`: Stock ticker
+- `asOfDate`: Trading date
+- `open`: Stored open price from your historical pipeline
+- `high`: Stored high price from your historical pipeline
+- `low`: Stored low price from your historical pipeline
+- `close`: Stored close price from your historical pipeline
+- `volume`: Optional volume
+
+## API Routes
+
+### POST `/api/trades`
+Execute a trade (BUY or SELL)
+
+Request body:
+```json
+{
+  "symbol": "AAPL",
+  "type": "BUY",
+  "quantity": 10
+}
+```
+
+### GET `/api/portfolio`
+Get portfolio summary with current valuations
+
+### GET `/api/quote?symbol=AAPL`
+Get latest stored quote (mapped from latest close in `market_prices`)
 
 ## Development
 

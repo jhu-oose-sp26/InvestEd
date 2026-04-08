@@ -33,14 +33,14 @@ export default function TradePage() {
         let end: Date
         if (isToday) {
           end = new Date()
-          start = new Date(end.getTime() - 4 * 60 * 60 * 1000)
+          start = new Date(`${selectedDate}T09:30:00`)
         } else {
           // If a past date is selected, assume market close at 16:00 local/ET
           end = new Date(`${selectedDate}T16:00:00`)
           // Market open at 09:30 local/ET
           start = new Date(`${selectedDate}T09:30:00`)
         }
-        
+
         const res = await fetch(
           `/api/bars?symbol=${encodeURIComponent(symbolToLookup)}&start=${start.toISOString()}&end=${end.toISOString()}`
         )
@@ -100,7 +100,7 @@ export default function TradePage() {
           Look up a stock symbol to view its live chart and execute trades.
         </p>
       </div>
-      
+
       <div className="bg-card border rounded-xl p-6">
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1">
@@ -178,17 +178,17 @@ export default function TradePage() {
                 <p className="text-muted-foreground animate-pulse">Fetching candlestick history...</p>
               </div>
             ) : (
-              <TradeChart 
-                symbol={symbolToLookup} 
-                historicalBars={historicalBars} 
-                livePrice={selectedDate === new Date().toISOString().split("T")[0] ? livePrice : null} 
+              <TradeChart
+                symbol={symbolToLookup}
+                historicalBars={historicalBars}
+                livePrice={selectedDate === new Date().toISOString().split("T")[0] ? livePrice : null}
               />
             )}
 
             {/* Trading Actions */}
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold mb-4">Execute Order</h3>
-              
+
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
                   <label htmlFor="quantity" className="block text-sm font-medium mb-2">
@@ -230,11 +230,10 @@ export default function TradePage() {
             {/* Error / Success Messages */}
             {message && (
               <div
-                className={`p-4 rounded-md font-medium ${
-                  message.type === "success"
+                className={`p-4 rounded-md font-medium ${message.type === "success"
                     ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                     : "bg-red-50 text-red-800 border border-red-200"
-                }`}
+                  }`}
               >
                 {message.text}
               </div>
