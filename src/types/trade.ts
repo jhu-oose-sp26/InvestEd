@@ -1,7 +1,7 @@
 import { Decimal } from '@prisma/client/runtime/library'
 
 export type ExecuteTradeInput = {
-    userId: string
+    portfolioId: string
     symbol: string
     type: 'BUY' | 'SELL'
     quantity: number

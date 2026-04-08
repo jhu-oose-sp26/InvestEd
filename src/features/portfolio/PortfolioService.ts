@@ -11,31 +11,33 @@ export type { PositionValue, PortfolioSummary } from '@/types'
  */
 export class PortfolioService {
   /**
-   * Calculates current portfolio value and P&L for a user
+   * Calculates current portfolio value and P&L for a portfolio
    * Fetches current market prices and compares against cost basis
    */
-  async getPortfolioSummary(userId: string): Promise<PortfolioSummary> {
-    // Get user cash balance
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { cashBalance: true },
+  async getPortfolioSummary(portfolioId: string): Promise<PortfolioSummary> {
+    // Get portfolio cash balance
+    const portfolio = await prisma.portfolio.findUnique({
+      where: { id: portfolioId },
+      select: { id: true, name: true, cashBalance: true },
     })
 
-    if (!user) {
-      throw new Error('User not found')
+    if (!portfolio) {
+      throw new Error('Portfolio not found')
     }
 
     // Get all positions
     const positions = await prisma.position.findMany({
-      where: { userId },
+      where: { portfolioId },
     })
 
     if (positions.length === 0) {
       return {
-        totalCash: user.cashBalance.toNumber(),
+        portfolioId: portfolio.id,
+        portfolioName: portfolio.name,
+        totalCash: portfolio.cashBalance.toNumber(),
         totalInvested: 0,
         totalCurrentValue: 0,
-        totalPortfolioValue: user.cashBalance.toNumber(),
+        totalPortfolioValue: portfolio.cashBalance.toNumber(),
         totalUnrealizedPnL: 0,
         totalUnrealizedPnLPercent: 0,
         positions: [],
@@ -72,7 +74,7 @@ export class PortfolioService {
     })
 
     // Calculate totals
-    const totalCash = user.cashBalance.toNumber()
+    const totalCash = portfolio.cashBalance.toNumber()
     const totalInvested = positionValues.reduce((sum, p) => sum + p.totalCost, 0)
     const totalCurrentValue = positionValues.reduce((sum, p) => sum + p.currentValue, 0)
     const totalPortfolioValue = totalCash + totalCurrentValue
@@ -81,6 +83,8 @@ export class PortfolioService {
       totalInvested > 0 ? (totalUnrealizedPnL / totalInvested) * 100 : 0
 
     return {
+      portfolioId: portfolio.id,
+      portfolioName: portfolio.name,
       totalCash,
       totalInvested,
       totalCurrentValue,

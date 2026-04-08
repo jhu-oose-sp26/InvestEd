@@ -4,11 +4,15 @@ import { fetchFinnhubCompanyProfile } from '@/features/market-data/finnhub'
 
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Get userId from authentication session
-    // For now, using a placeholder userId - replace with actual auth
-    const userId = 'temp-user-id' // Replace with actual user ID from session
+    const portfolioId = request.nextUrl.searchParams.get('portfolioId')
+    if (!portfolioId) {
+      return NextResponse.json(
+        { error: 'Missing required query parameter: portfolioId' },
+        { status: 400 }
+      )
+    }
 
-    const summary = await portfolioService.getPortfolioSummary(userId)
+    const summary = await portfolioService.getPortfolioSummary(portfolioId)
 
     const apiKey = process.env.FINNHUB_API_KEY
     if (apiKey?.trim() && summary.positions.length > 0) {

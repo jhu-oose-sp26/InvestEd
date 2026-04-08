@@ -14,7 +14,7 @@ export type { ExecuteTradeInput, TradeResult } from '@/types'
 
 // Validation schemas
 const ExecuteTradeSchema = z.object({
-  userId: z.string(),
+  portfolioId: z.string(),
   symbol: z.string().min(1).max(10),
   type: z.enum(['BUY', 'SELL']),
   quantity: z.number().int().positive(),
@@ -43,27 +43,27 @@ export class TradeService {
       }
     }
 
-    const { userId, symbol, type, quantity, price } = validationResult.data
+    const { portfolioId, symbol, type, quantity, price } = validationResult.data
     const totalValue = new Decimal(quantity * price)
 
     try {
       // Execute trade within a transaction
       const result = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
-        // Lock user row for update to prevent concurrent modifications
-        const user = await tx.user.findUnique({
-          where: { id: userId },
+        // Lock portfolio row for update to prevent concurrent modifications
+        const portfolio = await tx.portfolio.findUnique({
+          where: { id: portfolioId },
           select: { id: true, cashBalance: true },
         })
 
-        if (!user) {
-          throw new Error('User not found')
+        if (!portfolio) {
+          throw new Error('Portfolio not found')
         }
 
         // Get current position if it exists
         const position = await tx.position.findUnique({
           where: {
-            userId_symbol: {
-              userId,
+            portfolioId_symbol: {
+              portfolioId,
               symbol,
             },
           },
@@ -71,16 +71,16 @@ export class TradeService {
 
         if (type === 'BUY') {
           // Validate sufficient cash
-          if (user.cashBalance.lessThan(totalValue)) {
+          if (portfolio.cashBalance.lessThan(totalValue)) {
             throw new Error(
-              `Insufficient cash. Required: $${totalValue}, Available: $${user.cashBalance}`
+              `Insufficient cash. Required: $${totalValue}, Available: $${portfolio.cashBalance}`
             )
           }
 
           // Update cash balance
-          const newCashBalance = user.cashBalance.minus(totalValue)
-          await tx.user.update({
-            where: { id: userId },
+          const newCashBalance = portfolio.cashBalance.minus(totalValue)
+          await tx.portfolio.update({
+            where: { id: portfolioId },
             data: { cashBalance: newCashBalance },
           })
 
@@ -103,7 +103,7 @@ export class TradeService {
             // Create new position
             await tx.position.create({
               data: {
-                userId,
+                portfolioId,
                 symbol,
                 quantity,
                 averageBuyPrice: price,
@@ -119,9 +119,9 @@ export class TradeService {
           }
 
           // Update cash balance
-          const newCashBalance = user.cashBalance.plus(totalValue)
-          await tx.user.update({
-            where: { id: userId },
+          const newCashBalance = portfolio.cashBalance.plus(totalValue)
+          await tx.portfolio.update({
+            where: { id: portfolioId },
             data: { cashBalance: newCashBalance },
           })
 
@@ -146,7 +146,7 @@ export class TradeService {
         // Create trade record
         const trade = await tx.trade.create({
           data: {
-            userId,
+            portfolioId,
             symbol,
             type,
             quantity,
@@ -158,8 +158,8 @@ export class TradeService {
         // Get updated position for return value
         const updatedPosition = await tx.position.findUnique({
           where: {
-            userId_symbol: {
-              userId,
+            portfolioId_symbol: {
+              portfolioId,
               symbol,
             },
           },
@@ -168,8 +168,8 @@ export class TradeService {
         return {
           tradeId: trade.id,
           newCashBalance: type === 'BUY'
-            ? user.cashBalance.minus(totalValue)
-            : user.cashBalance.plus(totalValue),
+            ? portfolio.cashBalance.minus(totalValue)
+            : portfolio.cashBalance.plus(totalValue),
           positionQuantity: updatedPosition?.quantity ?? 0,
         }
       })
@@ -189,12 +189,12 @@ export class TradeService {
   }
 
   /**
-   * Gets all trades for a user, optionally filtered by symbol
+   * Gets all trades for a portfolio, optionally filtered by symbol
    */
-  async getUserTrades(userId: string, symbol?: string) {
+  async getPortfolioTrades(portfolioId: string, symbol?: string) {
     return prisma.trade.findMany({
       where: {
-        userId,
+        portfolioId,
         ...(symbol && { symbol }),
       },
       orderBy: {
@@ -204,11 +204,11 @@ export class TradeService {
   }
 
   /**
-   * Gets all positions for a user
+   * Gets all positions for a portfolio
    */
-  async getUserPositions(userId: string) {
+  async getPortfolioPositions(portfolioId: string) {
     return prisma.position.findMany({
-      where: { userId },
+      where: { portfolioId },
       orderBy: {
         symbol: 'asc',
       },

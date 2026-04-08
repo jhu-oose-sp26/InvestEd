@@ -8,12 +8,12 @@ export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { symbol, type, quantity } = body
+    const { symbol, type, quantity, portfolioId } = body
 
     // Validate required fields
-    if (!symbol || !type || !quantity) {
+    if (!symbol || !type || !quantity || !portfolioId) {
       return NextResponse.json(
-        { error: 'Missing required fields: symbol, type, quantity' },
+        { error: 'Missing required fields: symbol, type, quantity, portfolioId' },
         { status: 400 }
       )
     }
@@ -26,16 +26,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // TODO: Get userId from authentication session
-    // For now, using a placeholder userId - replace with actual auth
-    const userId = 'temp-user-id' // Replace with actual user ID from session
-
     // Finnhub live (WS cache + REST) when FINNHUB_API_KEY is set; else Postgres latest close
     const { price, source: executionPriceSource } = await resolveTradeExecutionPrice(symbol)
 
     // Execute trade
     const result = await tradeService.executeTrade({
-      userId,
+      portfolioId,
       symbol,
       type,
       quantity: parseInt(quantity),

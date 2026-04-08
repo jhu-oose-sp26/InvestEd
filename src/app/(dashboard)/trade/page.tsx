@@ -64,6 +64,9 @@ export default function TradePage() {
     setLoading(true)
     setMessage(null)
 
+    // TODO: Replace with actual portfolio selection from user context
+    const portfolioId = 'temp-portfolio-id'
+
     try {
       const response = await fetch("/api/trades", {
         method: "POST",
@@ -72,6 +75,7 @@ export default function TradePage() {
           symbol: symbolToLookup.toUpperCase(),
           type: tradeType,
           quantity: parseInt(quantity),
+          portfolioId,
         }),
       })
 

@@ -59,20 +59,20 @@ async function markToMarket(cash: number, positions: PositionState, at: Date): P
 }
 
 /**
- * Portfolio value over time: starting balance at account creation, then after each trade,
+ * Portfolio value over time: starting balance at portfolio creation, then after each trade,
  * then current value. Uses 1Min bars when available; otherwise cost basis for each symbol.
  */
-export async function getPortfolioValueHistory(userId: string): Promise<PortfolioHistoryPoint[]> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+export async function getPortfolioValueHistory(portfolioId: string): Promise<PortfolioHistoryPoint[]> {
+  const portfolio = await prisma.portfolio.findUnique({
+    where: { id: portfolioId },
     select: { cashBalance: true, createdAt: true },
   })
-  if (!user) {
-    throw new Error('User not found')
+  if (!portfolio) {
+    throw new Error('Portfolio not found')
   }
 
   const trades = await prisma.trade.findMany({
-    where: { userId },
+    where: { portfolioId },
     orderBy: [{ executedAt: 'asc' }, { id: 'asc' }],
   })
 
@@ -84,9 +84,9 @@ export async function getPortfolioValueHistory(userId: string): Promise<Portfoli
     else sellSum += v
   }
 
-  const initialCash = user.cashBalance.toNumber() + buySum - sellSum
+  const initialCash = portfolio.cashBalance.toNumber() + buySum - sellSum
   const points: PortfolioHistoryPoint[] = [
-    { at: user.createdAt.toISOString(), value: initialCash },
+    { at: portfolio.createdAt.toISOString(), value: initialCash },
   ]
 
   let cash = initialCash
@@ -98,7 +98,7 @@ export async function getPortfolioValueHistory(userId: string): Promise<Portfoli
     points.push({ at: trade.executedAt.toISOString(), value })
   }
 
-  const summary = await portfolioService.getPortfolioSummary(userId)
+  const summary = await portfolioService.getPortfolioSummary(portfolioId)
   points.push({ at: new Date().toISOString(), value: summary.totalPortfolioValue })
 
   return points
