@@ -47,22 +47,22 @@ Our proposed solution is InvestEd, a web-based simulated trading platform that c
 
 ## Software Architecture & Technology Stack 
 
-###### Web-based (possibly mobile depending on time constraint) client-server system
+###### Web-based client-server system
 
 ###### Frontend: 
-- Responsible for user interactions, account management, simulated trading interfaces, portfolio visualization, etc. 
-- Javascript React
-- Communicate with the backend using RESTful APIs.
+- **Next.js & React:** Powers the user interface, routing, and dynamic client-side interactions.
+- **Tailwind & Shadcn:** Provides styling and accessible pre-built components.
+- **Client Hooks:** Orchestrates API communication and state management for trading dashboards.
 
 ###### Backend: 
-- Handles core application logic like user authentication, strategy processing, trade simulation, data management, etc using service-oriented architecture
-- Python (Good for data, analytics)
-- FastAPI
+- **Next.js API:** Handles core logic for trading, accounts, and market queries via REST endpoints.
+- **Prisma ORM:** Manages relational structured database interactions for storing users, positions, and trades.
+- **TypeScript Pipelines:** Background workers continuously ingest external market data from Finnhub and Alpaca.
 
 ###### Data:
-- Market data extracted from financial data APIs (Alpaca, Yahoo Finance, Finnhub, Alpha Vantage) and possible scraping 
-- Relational databases like PostgreSQL used to store user accounts, simulated trades and strategy metadata, etc for structured queries.
-- Encryption for sensitive data 
+- **Relational Storage:** Supabase (PostgreSQL) securely stores user accounts, trade histories, strategies, reports, and ingested market data.
+- **Data APIs:** Finnhub and Alpaca supply live quotes and historical daily/intraday candlesticks respectively.
+- **Bulk Ingestion:** AWS S3 serves as a staging layer for importing historical CSV/OHLCV datasets via Python scripts.
 
 ###### Cloud-Based Infrastructure to allow for scaling and responsiveness for demand and traffic. 
 
