@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { tradeService } from '@/features/trading/TradeService'
 import { resolveTradeExecutionPrice } from '@/features/market-data/executionPrice'
+import { assertPortfolioOwner, requireAuth } from '@/lib/auth/server'
 
 /** Trade pricing may use Finnhub (`ws`); keep on Node runtime. */
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+
     const body = await request.json()
     const { symbol, type, quantity, portfolioId } = body
 
@@ -15,6 +19,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields: symbol, type, quantity, portfolioId' },
         { status: 400 }
+      )
+    }
+
+    const portfolio = await assertPortfolioOwner(portfolioId, auth.user.id)
+    if (!portfolio) {
+      return NextResponse.json(
+        { error: 'Portfolio not found or access denied' },
+        { status: 403 }
       )
     }
 

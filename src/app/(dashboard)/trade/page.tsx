@@ -3,8 +3,19 @@
 import { useState, useEffect } from "react"
 import { useLivePrice } from "@/hooks/useLivePrice"
 import { TradeChart, HistoricalBar } from "@/components/ui/TradeChart"
+import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
+import { PaperTradingSignInCard } from "@/components/auth/PaperTradingSignInCard"
 
 export default function TradePage() {
+  const {
+    ready,
+    sessionSyncing,
+    portfolioId,
+    firebaseUser,
+    configError,
+    error: authError,
+    signOut,
+  } = usePaperTradingAuth()
   const [symbol, setSymbol] = useState("")
   const [symbolToLookup, setSymbolToLookup] = useState("")
   const [quantity, setQuantity] = useState("")
@@ -65,12 +76,17 @@ export default function TradePage() {
     setMessage(null)
 
     // TODO: Replace with actual portfolio selection from user context
-    const portfolioId = 'temp-portfolio-id'
+    if (!portfolioId) {
+      setMessage({ type: "error", text: "Not signed in or no portfolio." })
+      setLoading(false)
+      return
+    }
 
     try {
       const response = await fetch("/api/trades", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           symbol: symbolToLookup.toUpperCase(),
           type: tradeType,
@@ -94,6 +110,57 @@ export default function TradePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!ready) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 text-center text-muted-foreground">
+        Loading…
+      </div>
+    )
+  }
+
+  if (configError) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <PaperTradingSignInCard />
+      </div>
+    )
+  }
+
+  if (!firebaseUser) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold mb-2">Live Trading Terminal</h1>
+          <p className="text-muted-foreground text-sm">
+            Sign in to execute paper trades with your portfolio.
+          </p>
+        </div>
+        <PaperTradingSignInCard />
+      </div>
+    )
+  }
+
+  if (sessionSyncing || !portfolioId) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 text-center text-muted-foreground">
+        {authError ? (
+          <div className="space-y-4">
+            <p className="text-red-600">{authError}</p>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="text-sm underline"
+            >
+              Sign out and try again
+            </button>
+          </div>
+        ) : (
+          <>Setting up your session and portfolio…</>
+        )}
+      </div>
+    )
   }
 
   return (

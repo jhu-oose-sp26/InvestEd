@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
+import { PaperTradingSignInCard } from "@/components/auth/PaperTradingSignInCard"
 import {
   PieChart,
   Pie,
@@ -43,20 +45,40 @@ interface PortfolioSummary {
 }
 
 export default function PortfolioPage() {
+  const {
+    ready,
+    sessionSyncing,
+    portfolioId,
+    firebaseUser,
+    configError,
+    error: authError,
+    signOut,
+  } = usePaperTradingAuth()
+
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null)
   const [history, setHistory] = useState<PortfolioHistoryPoint[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // TODO: Replace with actual portfolio selection from user context
-    const portfolioId = 'temp-portfolio-id'
+    if (!ready || !portfolioId) {
+      setLoading(false)
+      setPortfolio(null)
+      setHistory(null)
+      setError(null)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    setError(null)
 
     const load = async () => {
       try {
+        const q = `portfolioId=${encodeURIComponent(portfolioId)}`
         const [portfolioRes, historyRes] = await Promise.all([
-          fetch(`/api/portfolio?portfolioId=${portfolioId}`),
-          fetch(`/api/portfolio/history?portfolioId=${portfolioId}`),
+          fetch(`/api/portfolio?${q}`, { credentials: "include" }),
+          fetch(`/api/portfolio/history?${q}`, { credentials: "include" }),
         ])
         if (!portfolioRes.ok) throw new Error("Failed to fetch portfolio")
         if (!historyRes.ok) throw new Error("Failed to fetch portfolio history")
@@ -64,16 +86,69 @@ export default function PortfolioPage() {
           portfolioRes.json(),
           historyRes.json(),
         ])
-        setPortfolio(portfolioData)
-        setHistory(historyData.points as PortfolioHistoryPoint[])
+        if (!cancelled) {
+          setPortfolio(portfolioData)
+          setHistory(historyData.points as PortfolioHistoryPoint[])
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred")
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "An error occurred")
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
-    load()
-  }, [])
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [ready, portfolioId])
+
+  if (!ready) {
+    return <div className="text-center py-8 text-muted-foreground">Loading…</div>
+  }
+
+  if (configError) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <h1 className="text-3xl font-bold">Portfolio</h1>
+        <PaperTradingSignInCard />
+      </div>
+    )
+  }
+
+  if (!firebaseUser) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <h1 className="text-3xl font-bold">Portfolio</h1>
+        <p className="text-muted-foreground text-sm">
+          Sign in to view your paper-trading portfolio.
+        </p>
+        <PaperTradingSignInCard />
+      </div>
+    )
+  }
+
+  if (sessionSyncing || !portfolioId) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        {authError ? (
+          <div className="space-y-4">
+            <p className="text-red-600">{authError}</p>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="text-sm underline"
+            >
+              Sign out and try again
+            </button>
+          </div>
+        ) : (
+          <>Setting up your session and portfolio…</>
+        )}
+      </div>
+    )
+  }
 
   if (loading) {
     return <div className="text-center py-8">Loading portfolio...</div>

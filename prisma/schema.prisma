@@ -15,6 +15,8 @@ datasource db {
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
+  /// Firebase Auth user id — set when the user first signs in via Firebase
+  firebaseUid  String?   @unique
   name         String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
