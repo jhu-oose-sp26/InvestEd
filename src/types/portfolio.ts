@@ -11,6 +11,8 @@ export interface PositionValue {
 }
 
 export interface PortfolioSummary {
+    portfolioId: string
+    portfolioName: string
     totalCash: number
     totalInvested: number
     totalCurrentValue: number

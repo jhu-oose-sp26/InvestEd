@@ -21,6 +21,8 @@ interface PortfolioHistoryPoint {
 }
 
 interface PortfolioSummary {
+  portfolioId: string
+  portfolioName: string
   totalCash: number
   totalInvested: number
   totalCurrentValue: number
@@ -47,11 +49,14 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // TODO: Replace with actual portfolio selection from user context
+    const portfolioId = 'temp-portfolio-id'
+
     const load = async () => {
       try {
         const [portfolioRes, historyRes] = await Promise.all([
-          fetch("/api/portfolio"),
-          fetch("/api/portfolio/history"),
+          fetch(`/api/portfolio?portfolioId=${portfolioId}`),
+          fetch(`/api/portfolio/history?portfolioId=${portfolioId}`),
         ])
         if (!portfolioRes.ok) throw new Error("Failed to fetch portfolio")
         if (!historyRes.ok) throw new Error("Failed to fetch portfolio history")
