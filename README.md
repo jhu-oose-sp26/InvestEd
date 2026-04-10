@@ -123,8 +123,6 @@ InvestEd/
 
 2. Install dependencies
 
-    From the **app root** (the directory that contains `package.json` and this README—see [Project Structure](#project-structure); if your checkout nests the app in another folder, `cd` there first):
-
     ```bash
     npm install
     ```
@@ -136,54 +134,54 @@ InvestEd/
     ```
 
     Edit `.env` and add your:
-    - `DATABASE_URL`: PostgreSQL connection string (local Docker or hosted, e.g. Supabase)
-    - If using Docker Compose for Postgres, ensure DB-related vars match: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `HOST`, `PORT`
-    - Optional: `FINNHUB_API_KEY`, `ALPAKA_API_KEY`, `ALPAKA_API_SECRET`
-    - Firebase (see `.env.example` for details): `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_SERVICE_ACCOUNT_KEY` (or PEM + related vars), etc.
+    - `DATABASE_URL`: PostgreSQL connection string
+    and ensure DB credentials match:
+    - `POSTGRES_USER`
+    - `POSTGRES_PASSWORD`
+    - `POSTGRES_DB`
+    - `HOST`
+    - `PORT`
+    - `FINNHUB_API_KEY` 
+    - `ALPAKA_API_KEY`
+    - `ALPAKA_API_SECRET`
+    - `NEXT_PUBLIC_FIREBASE_API_KEY`
+    - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+    - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
 
-4. Start Postgres **(local development only; skip if `DATABASE_URL` points to a hosted database)**
+    - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+    - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+    - `NEXT_PUBLIC_FIREBASE_APP_ID`
+    - `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`
+    - `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL`
+    - `FIREBASE_SERVICE_ACCOUNT_KEY`
 
-    From the **app root** (same directory as `docker-compose.yml` and `package.json`):
+4. Start Postgres
 
-    ```bash
+  ```bash
     docker compose up -d
     docker compose logs -f db
-    ```
+  ```
 
 5. Apply SQL migrations and generate the Prisma client
 
-    The database schema must match `prisma/schema.prisma`. If migrations are not applied, API routes may fail with errors like *column does not exist*.
+    Bring the database in line with `prisma/schema.prisma` by running each migration file **in order** (Supabase migrations first, then each `prisma/migrations/<timestamp>/migration.sql` by folder name). After the SQL has been applied, generate the client:
 
-    ```bash
-    npm run db:generate
-    ```
-
-    Then run the SQL migration files against **the same database** as `DATABASE_URL`, in this order:
-
-    1. `supabase/migrations/20260329120000_market_candles.sql`
-    2. `supabase/migrations/20260329130000_market_quote_snapshots.sql`
-    3. Each `migration.sql` under `prisma/migrations/` in chronological order (by folder name), e.g. `20260409120000_add_firebase_uid`, `20260410120000_add_portfolio_name`, etc.
-
-    From the `OOPs` directory, you can apply a file with:
-    
     ```bash
     npx prisma db execute --file supabase/migrations/20260329120000_market_candles.sql
     npx prisma db execute --file supabase/migrations/20260329130000_market_quote_snapshots.sql
     npx prisma db execute --file prisma/migrations/20260409120000_add_firebase_uid/migration.sql
     npx prisma db execute --file prisma/migrations/20260410120000_add_portfolio_name/migration.sql
+    npm run db:generate
     ```
 
-    Alternatively, paste each file’s contents into your host’s SQL editor (e.g. Supabase). If `prisma migrate deploy` works for your environment, you can use that instead of running each file manually.
+    You can run the same SQL in your host’s SQL editor instead of `db execute`, or use `prisma migrate deploy` when your database’s migration history supports it. For `db:push` and other Prisma workflows, see **Development** below.
 
-    On a **new empty** database, `npm run db:push` may sync the schema in one step; it can fail if the database already has incompatible rows—use the SQL files above in that case.
+6. Seed the placeholder API user (current routes use `temp-user-id`):
 
-6. *(Optional)* Seed a demo user and portfolio for local testing:
-
-    ```bash
-    npx tsx seed.ts
-    ```
-
-    The dashboard uses **Firebase authentication** in the browser; the seed is only for legacy/demo IDs if needed.
+```bash
+psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_DB>" \
+  -c "INSERT INTO users (id,email,name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+```
 
 7. Run the development server:
 
