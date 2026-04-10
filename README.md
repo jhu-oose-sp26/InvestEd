@@ -59,7 +59,7 @@ A scalable mock trading platform for JHU students to practice trading skills in 
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
+- **Frontend**: Next.js (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
 - **Backend**: Node.js with TypeScript, service-oriented architecture
 - **Database**: PostgreSQL with Prisma ORM
 - **Market Data**: PostgreSQL-backed historical price store; real-time via Finnhub
@@ -123,57 +123,75 @@ InvestEd/
 
 2. Install dependencies
 
-```bash
-npm install
-```
+    From the **app root** (the directory that contains `package.json` and this README—see [Project Structure](#project-structure); if your checkout nests the app in another folder, `cd` there first):
+
+    ```bash
+    npm install
+    ```
 
 3. Set up environment variables
+
     ```bash
     cp .env.example .env
     ```
 
     Edit `.env` and add your:
-    - `DATABASE_URL`: PostgreSQL connection string
-    and ensure DB credentials match:
-    - `POSTGRES_USER`
-    - `POSTGRES_PASSWORD`
-    - `POSTGRES_DB`
-    - `HOST`
-    - `PORT`
-    - `FINNHUB_API_KEY` 
-    - `ALPAKA_API_KEY`
-    - `ALPAKA_API_SECRET`
+    - `DATABASE_URL`: PostgreSQL connection string (local Docker or hosted, e.g. Supabase)
+    - If using Docker Compose for Postgres, ensure DB-related vars match: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `HOST`, `PORT`
+    - Optional: `FINNHUB_API_KEY`, `ALPAKA_API_KEY`, `ALPAKA_API_SECRET`
+    - Firebase (see `.env.example` for details): `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_SERVICE_ACCOUNT_KEY` (or PEM + related vars), etc.
 
-4. Start Postgres
-3. Start Postgres (from the **project root** — same folder as `docker-compose.yml`):
+4. Start Postgres **(local development only; skip if `DATABASE_URL` points to a hosted database)**
 
-```bash
+    From the **app root** (same directory as `docker-compose.yml` and `package.json`):
+
+    ```bash
     docker compose up -d
     docker compose logs -f db
-  ```
-5. Set up the database schema:
+    ```
 
-```bash
-  # Generate Prisma client
-  npm run db:generate
+5. Apply SQL migrations and generate the Prisma client
 
-  # Push schema to database (or use migrations for production)
-  npm run db:push
-```
-6. Seed the placeholder API user (current routes use `temp-user-id`):
+    The database schema must match `prisma/schema.prisma`. If migrations are not applied, API routes may fail with errors like *column does not exist*.
 
-```bash
-psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_DB>" \
-  -c "INSERT INTO users (id,email,name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
-```
+    ```bash
+    npm run db:generate
+    ```
+
+    Then run the SQL migration files against **the same database** as `DATABASE_URL`, in this order:
+
+    1. `supabase/migrations/20260329120000_market_candles.sql`
+    2. `supabase/migrations/20260329130000_market_quote_snapshots.sql`
+    3. Each `migration.sql` under `prisma/migrations/` in chronological order (by folder name), e.g. `20260409120000_add_firebase_uid`, `20260410120000_add_portfolio_name`, etc.
+
+    From the `OOPs` directory, you can apply a file with:
+    
+    ```bash
+    npx prisma db execute --file supabase/migrations/20260329120000_market_candles.sql
+    npx prisma db execute --file supabase/migrations/20260329130000_market_quote_snapshots.sql
+    npx prisma db execute --file prisma/migrations/20260409120000_add_firebase_uid/migration.sql
+    npx prisma db execute --file prisma/migrations/20260410120000_add_portfolio_name/migration.sql
+    ```
+
+    Alternatively, paste each file’s contents into your host’s SQL editor (e.g. Supabase). If `prisma migrate deploy` works for your environment, you can use that instead of running each file manually.
+
+    On a **new empty** database, `npm run db:push` may sync the schema in one step; it can fail if the database already has incompatible rows—use the SQL files above in that case.
+
+6. *(Optional)* Seed a demo user and portfolio for local testing:
+
+    ```bash
+    npx tsx seed.ts
+    ```
+
+    The dashboard uses **Firebase authentication** in the browser; the seed is only for legacy/demo IDs if needed.
 
 7. Run the development server:
 
-```bash
-npm run dev
-```
+    ```bash
+    npm run dev
+    ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+    Open [http://localhost:3000](http://localhost:3000) in your browser. 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->
@@ -378,8 +396,14 @@ Data flow: server keeps one WebSocket to Finnhub and an in-memory cache; when th
 
 ## API Routes
 
-### POST `/api/trades`
-Execute a trade (BUY or SELL)
+### `POST /api/auth/session`
+Exchange a Firebase ID token (request body `{ "idToken": "..." }`) for an HTTP-only session cookie.
+
+### `GET /api/auth/me`
+Return the signed-in user (from session cookie), or 401 if not authenticated.
+
+### `POST /api/trades`
+Execute a trade (BUY or SELL; requires auth).
 
 Request body:
 ```json
@@ -429,11 +453,10 @@ npm run db:studio
 
 ## Next Steps
 
-1. **Authentication**: Implement user authentication (NextAuth.js recommended)
-2. **Shadcn UI Components**: Add more UI components from Shadcn UI library
-3. **Testing**: Add unit and integration tests
-5. **Error Boundaries**: Add React error boundaries for better error handling
-6. **Type Safety**: Enhance TypeScript types and validation
+1. **Shadcn UI Components**: Add more UI components from Shadcn UI library
+2. **Testing**: Add unit and integration tests
+3. **Error Boundaries**: Add React error boundaries for better error handling
+4. **Type Safety**: Enhance TypeScript types and validation
 
 ## License
 
