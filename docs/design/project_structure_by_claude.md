@@ -316,10 +316,10 @@ flowchart LR
 ### Portfolio Flow
 ```mermaid
 flowchart LR
-    A["portfolio/page.tsx"] -->|"GET /api/portfolio"| B["api/portfolio/route.ts"]
+    A["portfolio/page.tsx"] -->|"GET /api/portfolios/[id]"| B["api/portfolios/[id]/route.ts"]
     B --> C["PortfolioService.ts"]
     C --> D["prisma.ts → PostgreSQL"]
-    A -->|"GET /api/portfolio/history"| E["api/portfolio/history/route.ts"]
+    A -->|"GET /api/portfolios/[id]/history"| E["api/portfolios/[id]/history/route.ts"]
     E --> F["PortfolioHistoryService.ts"]
     F --> D
     A -->|"useLiveQuotes hook"| G["GET /api/live-quotes"]

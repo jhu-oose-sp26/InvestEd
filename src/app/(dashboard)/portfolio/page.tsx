@@ -75,10 +75,10 @@ export default function PortfolioPage() {
 
     const load = async () => {
       try {
-        const q = `portfolioId=${encodeURIComponent(portfolioId)}`
+        const enc = encodeURIComponent(portfolioId)
         const [portfolioRes, historyRes] = await Promise.all([
-          fetch(`/api/portfolio?${q}`, { credentials: "include" }),
-          fetch(`/api/portfolio/history?${q}`, { credentials: "include" }),
+          fetch(`/api/portfolios/${enc}`, { credentials: "include" }),
+          fetch(`/api/portfolios/${enc}/history`, { credentials: "include" }),
         ])
         if (!portfolioRes.ok) throw new Error("Failed to fetch portfolio")
         if (!historyRes.ok) throw new Error("Failed to fetch portfolio history")

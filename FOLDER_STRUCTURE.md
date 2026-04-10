@@ -17,8 +17,12 @@ InvestEd/
 │   │   ├── api/                    # API routes
 │   │   │   ├── trades/
 │   │   │   │   └── route.ts        # POST /api/trades - Execute trade
-│   │   │   ├── portfolio/
-│   │   │   │   └── route.ts        # GET /api/portfolio - Get portfolio summary
+│   │   │   ├── portfolios/
+│   │   │   │   ├── route.ts        # POST /api/portfolios - Create portfolio
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.ts    # GET /api/portfolios/[id] - Summary
+│   │   │   │       └── history/
+│   │   │   │           └── route.ts # GET /api/portfolios/[id]/history
 │   │   │   ├── quote/
 │   │   │   │   └── route.ts        # GET /api/quote - Get latest stored quote
 │   │   │   ├── live-quote/
@@ -85,7 +89,7 @@ InvestEd/
 
 ### API Routes
 - **/api/trades**: POST endpoint for executing trades
-- **/api/portfolio**: GET endpoint for portfolio summary
+- **/api/portfolios**: POST create portfolio; **/api/portfolios/[id]** GET summary; **/api/portfolios/[id]/history** GET history
 - **/api/quote**: GET endpoint for latest stored quote by symbol
 - **/api/live-quote**: GET ?symbol=AAPL – Finnhub real-time single quote
 - **/api/live-quotes**: GET ?symbols=AAPL,MSFT – Finnhub real-time multi (for graphs)

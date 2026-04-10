@@ -390,8 +390,14 @@ Request body:
 }
 ```
 
-### GET `/api/portfolio`
-Get portfolio summary with current valuations
+### `GET /api/portfolios/[id]`
+Portfolio summary (requires auth; id must belong to the signed-in user).
+
+### `GET /api/portfolios/[id]/history`
+Portfolio value history for that id.
+
+### `POST /api/portfolios`
+Create a paper-trading portfolio for the signed-in user.
 
 ### GET `/api/quote?symbol=AAPL`
 Get latest stored quote (mapped from latest close in `market_prices`)

@@ -10,7 +10,8 @@ const createBody = z.object({
 })
 
 /**
- * POST — Create a paper-trading portfolio for the signed-in user (e.g. right after first sign-up).
+ * POST /api/portfolios — Create a paper-trading portfolio for the signed-in user.
+ * GET summary/history: /api/portfolios/[id] and /api/portfolios/[id]/history
  */
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request)

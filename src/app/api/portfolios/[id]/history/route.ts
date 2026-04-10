@@ -4,17 +4,18 @@ import { assertPortfolioOwner, requireAuth } from '@/lib/auth/server'
 
 export const runtime = 'nodejs'
 
-export async function GET(request: NextRequest) {
+/** GET /api/portfolios/[id]/history — value history for an owned portfolio */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const auth = await requireAuth(request)
     if (!auth.ok) return auth.response
 
-    const portfolioId = request.nextUrl.searchParams.get('portfolioId')
-    if (!portfolioId) {
-      return NextResponse.json(
-        { error: 'Missing required query parameter: portfolioId' },
-        { status: 400 }
-      )
+    const { id: portfolioId } = await params
+    if (!portfolioId?.trim()) {
+      return NextResponse.json({ error: 'Missing portfolio id' }, { status: 400 })
     }
 
     const portfolio = await assertPortfolioOwner(portfolioId, auth.user.id)
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     const points = await getPortfolioValueHistory(portfolioId)
     return NextResponse.json({ points })
   } catch (error) {
-    console.error('Portfolio history API error:', error)
+    console.error('GET /api/portfolios/[id]/history error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
