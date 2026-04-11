@@ -20,6 +20,13 @@ interface PortfolioHistoryPoint {
   value: number
 }
 
+interface MarketPosition {
+  id: string
+  yesQuantity: number
+  noQuantity: number
+  market: { title: string; status: string; outcome: boolean | null }
+}
+
 interface PortfolioSummary {
   portfolioId: string
   portfolioName: string
@@ -29,6 +36,7 @@ interface PortfolioSummary {
   totalPortfolioValue: number
   totalUnrealizedPnL: number
   totalUnrealizedPnLPercent: number
+  predictionPositionsValue: number
   positions: Array<{
     symbol: string
     quantity: number
@@ -45,6 +53,7 @@ interface PortfolioSummary {
 export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null)
   const [history, setHistory] = useState<PortfolioHistoryPoint[] | null>(null)
+  const [marketPositions, setMarketPositions] = useState<MarketPosition[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,18 +63,21 @@ export default function PortfolioPage() {
 
     const load = async () => {
       try {
-        const [portfolioRes, historyRes] = await Promise.all([
+        const [portfolioRes, historyRes, marketPosRes] = await Promise.all([
           fetch(`/api/portfolio?portfolioId=${portfolioId}`),
           fetch(`/api/portfolio/history?portfolioId=${portfolioId}`),
+          fetch("/api/market-positions"),
         ])
         if (!portfolioRes.ok) throw new Error("Failed to fetch portfolio")
         if (!historyRes.ok) throw new Error("Failed to fetch portfolio history")
-        const [portfolioData, historyData] = await Promise.all([
+        const [portfolioData, historyData, marketPosData] = await Promise.all([
           portfolioRes.json(),
           historyRes.json(),
+          marketPosRes.json(),
         ])
         setPortfolio(portfolioData)
         setHistory(historyData.points as PortfolioHistoryPoint[])
+        setMarketPositions(marketPosData.positions ?? [])
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred")
       } finally {
@@ -124,7 +136,7 @@ export default function PortfolioPage() {
       <h1 className="text-3xl font-bold mb-8">Portfolio</h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div className="p-6 border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Cash Balance</div>
           <div className="text-2xl font-bold">{formatCurrency(portfolio.totalCash)}</div>
@@ -146,6 +158,11 @@ export default function PortfolioPage() {
           >
             {formatCurrency(portfolio.totalUnrealizedPnL)} ({formatPercent(portfolio.totalUnrealizedPnLPercent)})
           </div>
+        </div>
+        <div className="p-6 border rounded-lg">
+          <div className="text-sm text-muted-foreground mb-1">Predictions (est.)</div>
+          <div className="text-2xl font-bold">{formatCurrency(portfolio.predictionPositionsValue)}</div>
+          <div className="text-xs text-muted-foreground mt-1">$0.50/share, open markets</div>
         </div>
       </div>
 
@@ -299,7 +316,58 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      {/* Positions Table */}
+      {/* Prediction Market Positions */}
+      {marketPositions.length > 0 && (
+        <div className="border rounded-lg overflow-hidden mb-8">
+          <h2 className="text-xl font-semibold p-4 border-b">Prediction Markets</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Market</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">YES Shares</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">NO Shares</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Payout</th>
+                </tr>
+              </thead>
+              <tbody>
+                {marketPositions.map(pos => {
+                  const resolved = pos.market.status === 'RESOLVED'
+                  const payout = resolved
+                    ? pos.market.outcome
+                      ? formatCurrency(pos.yesQuantity)
+                      : formatCurrency(pos.noQuantity)
+                    : '—'
+                  return (
+                    <tr key={pos.id} className="border-t">
+                      <td className="px-4 py-3 font-medium">{pos.market.title}</td>
+                      <td className="px-4 py-3">
+                        <span className={pos.yesQuantity > 0 ? 'text-emerald-600 font-semibold' : 'text-muted-foreground'}>
+                          {pos.yesQuantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={pos.noQuantity > 0 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
+                          {pos.noQuantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${pos.market.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700' : pos.market.status === 'RESOLVED' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {pos.market.status}{pos.market.outcome != null && ` — ${pos.market.outcome ? 'YES' : 'NO'}`}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-emerald-600">{payout}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Positions Table */}
       <div className="border rounded-lg overflow-hidden">
         <h2 className="text-xl font-semibold p-4 border-b">Positions</h2>
         {portfolio.positions.length === 0 ? (
