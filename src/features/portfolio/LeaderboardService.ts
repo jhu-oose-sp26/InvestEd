@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getMarketDataProvider } from '../market-data/MarketDataProvider'
+import { getLiveQuotes } from '../market-data/finnhub/finnhubLiveQuoteService'
 import type { LeaderboardEntry } from '@/types'
 import { computeTotalPortfolioValue } from './portfolioValuation'
 
@@ -25,7 +25,8 @@ function clampOffset(raw: number | undefined): number {
 
 export class LeaderboardService {
   /**
-   * Global leaderboard: all portfolios ranked by live total value (cash + positions at latest quotes).
+   * Global leaderboard: all portfolios ranked by total value using Finnhub live quotes
+   * (WebSocket + REST fallback via getLiveQuotes); missing symbols use average buy price.
    */
   async getGlobalLeaderboard(query: LeaderboardQuery = {}): Promise<{
     entries: LeaderboardEntry[]
@@ -51,8 +52,14 @@ export class LeaderboardService {
 
     const priceMap = new Map<string, number>()
     if (symbols.length > 0) {
-      const quotes = await getMarketDataProvider().getQuotes(symbols)
-      for (const q of quotes) {
+      const apiKey = process.env.FINNHUB_API_KEY
+      if (!apiKey?.trim()) {
+        console.warn(
+          'LeaderboardService: FINNHUB_API_KEY missing; position values fall back to average buy price'
+        )
+      }
+      const liveQuotes = await getLiveQuotes(symbols, apiKey)
+      for (const q of liveQuotes) {
         priceMap.set(q.symbol, q.price)
       }
     }
