@@ -32,10 +32,16 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
+const VALID_STATUSES = ['OPEN', 'RESOLVED', 'CANCELLED'] as const
+type MarketStatus = typeof VALID_STATUSES[number]
+
 export async function GET(request: NextRequest) {
   try {
-    const status = request.nextUrl.searchParams.get('status') as 'OPEN' | 'RESOLVED' | 'CANCELLED' | null
-    const markets = await marketService.listMarkets(status ?? undefined)
+    const statusParam = request.nextUrl.searchParams.get('status')
+    if (statusParam && !VALID_STATUSES.includes(statusParam as MarketStatus)) {
+      return NextResponse.json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 })
+    }
+    const markets = await marketService.listMarkets((statusParam as MarketStatus) ?? undefined)
     return NextResponse.json({ markets })
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

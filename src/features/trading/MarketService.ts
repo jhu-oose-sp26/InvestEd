@@ -45,10 +45,8 @@ export class MarketService {
           const refund = order.side === 'NO'
             ? new Decimal(1).minus(order.limitPrice).times(order.quantity)
             : new Decimal(order.limitPrice).times(order.quantity)
-          const portfolio = await tx.portfolio.findFirst({ where: { userId: order.userId } })
-          if (portfolio) {
-            await tx.portfolio.update({ where: { id: portfolio.id }, data: { cashBalance: { increment: refund } } })
-          }
+          const portfolio = await tx.portfolio.findFirstOrThrow({ where: { userId: order.userId } })
+          await tx.portfolio.update({ where: { id: portfolio.id }, data: { cashBalance: { increment: refund } } })
           await tx.limitOrder.update({ where: { id: order.id }, data: { status: 'CANCELLED' } })
         }
 
@@ -57,10 +55,8 @@ export class MarketService {
         for (const pos of positions) {
           const payout = outcome ? pos.yesQuantity : pos.noQuantity
           if (payout > 0) {
-            const portfolio = await tx.portfolio.findFirst({ where: { userId: pos.userId } })
-            if (portfolio) {
-              await tx.portfolio.update({ where: { id: portfolio.id }, data: { cashBalance: { increment: payout } } })
-            }
+            const portfolio = await tx.portfolio.findFirstOrThrow({ where: { userId: pos.userId } })
+            await tx.portfolio.update({ where: { id: portfolio.id }, data: { cashBalance: { increment: payout } } })
           }
           await tx.marketPosition.delete({ where: { id: pos.id } })
         }

@@ -134,9 +134,11 @@ export class LimitOrderService {
         if (yesRem[yi] === 0) yi++
         if (noRem[ni] === 0) ni++
       } catch (e) {
+        // On a transient failure, stop matching for this run rather than
+        // silently skipping valid orders. The next order placement will
+        // trigger matchOrders again.
         console.error('Match failed:', e)
-        yi++
-        ni++
+        break
       }
     }
     return filled
