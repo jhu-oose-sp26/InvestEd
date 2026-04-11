@@ -20,5 +20,5 @@ export interface PortfolioSummary {
     totalUnrealizedPnL: number
     totalUnrealizedPnLPercent: number
     positions: PositionValue[]
-    predictionPositionsValue: number
+    predictionPositionsValue?: number
 }
