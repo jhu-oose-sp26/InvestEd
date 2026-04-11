@@ -59,7 +59,7 @@ A scalable mock trading platform for JHU students to practice trading skills in 
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
+- **Frontend**: Next.js (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
 - **Backend**: Node.js with TypeScript, service-oriented architecture
 - **Database**: PostgreSQL with Prisma ORM
 - **Market Data**: PostgreSQL-backed historical price store; real-time via Finnhub
@@ -123,11 +123,12 @@ InvestEd/
 
 2. Install dependencies
 
-```bash
-npm install
-```
+    ```bash
+    npm install
+    ```
 
 3. Set up environment variables
+
     ```bash
     cp .env.example .env
     ```
@@ -143,23 +144,38 @@ npm install
     - `FINNHUB_API_KEY` 
     - `ALPAKA_API_KEY`
     - `ALPAKA_API_SECRET`
+    - `NEXT_PUBLIC_FIREBASE_API_KEY`
+    - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+    - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+
+    - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+    - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+    - `NEXT_PUBLIC_FIREBASE_APP_ID`
+    - `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`
+    - `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL`
+    - `FIREBASE_SERVICE_ACCOUNT_KEY`
 
 4. Start Postgres
-3. Start Postgres (from the **project root** — same folder as `docker-compose.yml`):
 
-```bash
+  ```bash
     docker compose up -d
     docker compose logs -f db
   ```
-5. Set up the database schema:
 
-```bash
-  # Generate Prisma client
-  npm run db:generate
+5. Apply SQL migrations and generate the Prisma client
 
-  # Push schema to database (or use migrations for production)
-  npm run db:push
-```
+    Bring the database in line with `prisma/schema.prisma` by running each migration file **in order** (Supabase migrations first, then each `prisma/migrations/<timestamp>/migration.sql` by folder name). After the SQL has been applied, generate the client:
+
+    ```bash
+    npx prisma db execute --file supabase/migrations/20260329120000_market_candles.sql
+    npx prisma db execute --file supabase/migrations/20260329130000_market_quote_snapshots.sql
+    npx prisma db execute --file prisma/migrations/20260409120000_add_firebase_uid/migration.sql
+    npx prisma db execute --file prisma/migrations/20260410120000_add_portfolio_name/migration.sql
+    npm run db:generate
+    ```
+
+    You can run the same SQL in your host’s SQL editor instead of `db execute`, or use `prisma migrate deploy` when your database’s migration history supports it. For `db:push` and other Prisma workflows, see **Development** below.
+
 6. Seed the placeholder API user (current routes use `temp-user-id`):
 
 ```bash
@@ -169,11 +185,11 @@ psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_
 
 7. Run the development server:
 
-```bash
-npm run dev
-```
+    ```bash
+    npm run dev
+    ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+    Open [http://localhost:3000](http://localhost:3000) in your browser. 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->
@@ -378,8 +394,14 @@ Data flow: server keeps one WebSocket to Finnhub and an in-memory cache; when th
 
 ## API Routes
 
-### POST `/api/trades`
-Execute a trade (BUY or SELL)
+### `POST /api/auth/session`
+Exchange a Firebase ID token (request body `{ "idToken": "..." }`) for an HTTP-only session cookie.
+
+### `GET /api/auth/me`
+Return the signed-in user (from session cookie), or 401 if not authenticated.
+
+### `POST /api/trades`
+Execute a trade (BUY or SELL; requires auth).
 
 Request body:
 ```json
@@ -390,8 +412,14 @@ Request body:
 }
 ```
 
-### GET `/api/portfolio`
-Get portfolio summary with current valuations
+### `GET /api/portfolios/[id]`
+Portfolio summary (requires auth; id must belong to the signed-in user).
+
+### `GET /api/portfolios/[id]/history`
+Portfolio value history for that id.
+
+### `POST /api/portfolios`
+Create a paper-trading portfolio for the signed-in user.
 
 ### GET `/api/quote?symbol=AAPL`
 Get latest stored quote (mapped from latest close in `market_prices`)
@@ -423,11 +451,10 @@ npm run db:studio
 
 ## Next Steps
 
-1. **Authentication**: Implement user authentication (NextAuth.js recommended)
-2. **Shadcn UI Components**: Add more UI components from Shadcn UI library
-3. **Testing**: Add unit and integration tests
-5. **Error Boundaries**: Add React error boundaries for better error handling
-6. **Type Safety**: Enhance TypeScript types and validation
+1. **Shadcn UI Components**: Add more UI components from Shadcn UI library
+2. **Testing**: Add unit and integration tests
+3. **Error Boundaries**: Add React error boundaries for better error handling
+4. **Type Safety**: Enhance TypeScript types and validation
 
 ## License
 

@@ -1,14 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { portfolioService } from '@/features/portfolio/PortfolioService'
 import { fetchFinnhubCompanyProfile } from '@/features/market-data/finnhub'
+import { assertPortfolioOwner, requireAuth } from '@/lib/auth/server'
 
-export async function GET(request: NextRequest) {
+export const runtime = 'nodejs'
+
+/** GET /api/portfolios/[id] — portfolio summary for an owned portfolio */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const portfolioId = request.nextUrl.searchParams.get('portfolioId')
-    if (!portfolioId) {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+
+    const { id: portfolioId } = await params
+    if (!portfolioId?.trim()) {
+      return NextResponse.json({ error: 'Missing portfolio id' }, { status: 400 })
+    }
+
+    const portfolio = await assertPortfolioOwner(portfolioId, auth.user.id)
+    if (!portfolio) {
       return NextResponse.json(
-        { error: 'Missing required query parameter: portfolioId' },
-        { status: 400 }
+        { error: 'Portfolio not found or access denied' },
+        { status: 403 }
       )
     }
 
@@ -32,11 +47,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(summary)
   } catch (error) {
-    console.error('Portfolio API error:', error)
+    console.error('GET /api/portfolios/[id] error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
     )
   }
 }
-

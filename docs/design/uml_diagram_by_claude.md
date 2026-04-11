@@ -452,7 +452,7 @@ classDiagram
     class NextJS_API_Routes {
         <<API Layer>>
         /api/trades
-        /api/portfolio
+        /api/portfolios
         /api/live-quote
         /api/live-quotes
         /api/quiz
