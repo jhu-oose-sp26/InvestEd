@@ -178,6 +178,7 @@ model MarketPosition {
   market      Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
 
   @@unique([userId, marketId])
+  @@index([marketId])
   @@map("market_positions")
 }
 
