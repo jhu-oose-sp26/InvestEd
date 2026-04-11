@@ -21,3 +21,12 @@ export interface PortfolioSummary {
     totalUnrealizedPnLPercent: number
     positions: PositionValue[]
 }
+
+export interface LeaderboardEntry {
+    rank: number
+    portfolioId: string
+    portfolioName: string
+    userId: string
+    displayName: string
+    totalPortfolioValue: number
+}
