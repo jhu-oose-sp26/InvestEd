@@ -72,6 +72,11 @@ function buildExecutionPriceLookup(
     list.push({ at: f.filledAt, price: f.limitPrice })
     byMarket.set(f.marketId, list)
   }
+  // Sort each market's list ascending so the linear scan is correct regardless
+  // of the order the fills arrived from the outer query.
+  for (const list of byMarket.values()) {
+    list.sort((a, b) => a.at.getTime() - b.at.getTime())
+  }
 
   return (marketId, at) => {
     const history = byMarket.get(marketId)
@@ -133,9 +138,12 @@ export async function getPortfolioValueHistory(portfolioId: string): Promise<Por
     else stockSellSum += v
   }
 
+  // Only count currently-reserved cash from orders still OPEN.
+  // Filled orders had their reservation consumed (converted to shares), and
+  // cancelled orders were already refunded — neither affects current cash balance.
   let limitOutflow = 0
   for (const o of limitOrders) {
-    if (o.status === 'CANCELLED') continue
+    if (o.status !== 'OPEN') continue
     limitOutflow += reservationAmount(o.side, Number(o.limitPrice), o.quantity)
   }
 

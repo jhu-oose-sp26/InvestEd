@@ -70,6 +70,7 @@ export default function PortfolioPage() {
         ])
         if (!portfolioRes.ok) throw new Error("Failed to fetch portfolio")
         if (!historyRes.ok) throw new Error("Failed to fetch portfolio history")
+        if (!marketPosRes.ok) throw new Error("Failed to fetch market positions")
         const [portfolioData, historyData, marketPosData] = await Promise.all([
           portfolioRes.json(),
           historyRes.json(),
@@ -162,7 +163,7 @@ export default function PortfolioPage() {
         <div className="p-6 border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Predictions (est.)</div>
           <div className="text-2xl font-bold">{formatCurrency(portfolio.predictionPositionsValue)}</div>
-          <div className="text-xs text-muted-foreground mt-1">$0.50/share, open markets</div>
+          <div className="text-xs text-muted-foreground mt-1">Valued at last traded price, open markets</div>
         </div>
       </div>
 
