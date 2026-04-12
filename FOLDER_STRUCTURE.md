@@ -51,14 +51,9 @@ InvestEd/
 │       ├── useLivePrice.ts         # Single-symbol live price (trade page, tickers)
 │       └── useLiveQuotes.ts         # Multi-symbol (portfolio graphs, dashboards)
 ├── .env.example                    # Environment variables template
-├── finnhub_data_pipeline/          # Finnhub real-time (WebSocket + REST)
-│   ├── types.ts                    # Finnhub API types
-│   ├── finnhubRestClient.ts        # REST Quote client
-│   ├── finnhubWebSocketClient.ts   # WebSocket trade stream + cache
-│   ├── finnhubLiveQuoteService.ts  # getLiveQuote / getLiveQuotes
-│   ├── index.ts                    # Public API for app & graphs
-│   ├── REQUIREMENTS.md             # API key, WebSocket vs REST, where data is stored, UI (strip, Markets)
-│   └── README.md                   # Overview
+├── finnhub_data_pipeline/
+│   └── index.ts                    # `@finnhub-data-pipeline` barrel (re-exports src/features/.../finnhub)
+├── alpaca_data_pipeline/           # Alpaca 1m bars (TS) for charts / Prisma ingest
 ├── candle_supabase_pipeline/       # Supabase load: Alpaca 1m bars + Finnhub /quote snapshots
 ├── supabase/migrations/            # SQL for market_candles + market_quote_snapshots
 ├── market_data_pipeline/           # S3 to Postgres ingestion scripts

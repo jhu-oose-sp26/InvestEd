@@ -1,49 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { tradeService } from '@/features/trading/TradeService'
 import { resolveTradeExecutionPrice } from '@/features/market-data/executionPrice'
-import { assertPortfolioOwner, requireAuth } from '@/lib/auth/server'
+import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
 
 /** Trade pricing may use Finnhub (`ws`); keep on Node runtime. */
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(request)
-    if (!auth.ok) return auth.response
-
     const body = await request.json()
-    const { symbol, type, quantity, portfolioId } = body
+    const { symbol, type, quantity } = body
 
-    // Validate required fields
-    if (!symbol || !type || !quantity || !portfolioId) {
-      return NextResponse.json(
-        { error: 'Missing required fields: symbol, type, quantity, portfolioId' },
-        { status: 400 }
-      )
+    if (!symbol || !type || !quantity) {
+      return httpErrorResponse('IE_VAL_007', 400)
     }
 
-    const portfolio = await assertPortfolioOwner(portfolioId, auth.user.id)
-    if (!portfolio) {
-      return NextResponse.json(
-        { error: 'Portfolio not found or access denied' },
-        { status: 403 }
-      )
-    }
-
-    // Validate trade type
     if (type !== 'BUY' && type !== 'SELL') {
-      return NextResponse.json(
-        { error: 'Invalid trade type. Must be BUY or SELL' },
-        { status: 400 }
-      )
+      return httpErrorResponse('IE_VAL_008', 400)
     }
 
-    // Finnhub live (WS cache + REST) when FINNHUB_API_KEY is set; else Postgres latest close
+    const userId = 'temp-user-id'
+
     const { price, source: executionPriceSource } = await resolveTradeExecutionPrice(symbol)
 
-    // Execute trade
     const result = await tradeService.executeTrade({
-      portfolioId,
+      userId,
       symbol,
       type,
       quantity: parseInt(quantity),
@@ -51,10 +32,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || 'Trade execution failed' },
-        { status: 400 }
-      )
+      console.warn('Trade rejected:', result.error)
+      return NextResponse.json(httpErrorBody('IE_TRD_001'), { status: 400 })
     }
 
     return NextResponse.json({
@@ -67,9 +46,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Trade API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return httpErrorResponse('IE_TRD_002', 500)
   }
 }

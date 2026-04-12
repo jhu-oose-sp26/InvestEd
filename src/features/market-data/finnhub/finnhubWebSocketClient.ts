@@ -5,10 +5,31 @@
  */
 
 import WebSocket from 'ws'
-import type { FinnhubTradeMessage, FinnhubLiveQuote } from './types'
+import type { FinnhubTradeMessage, FinnhubLiveQuote, FinnhubWsControlMessage } from './types'
 import { FINNHUB_WATCHLIST_SYMBOLS } from './watchlistSymbols'
 
 const WS_URL = 'wss://ws.finnhub.io'
+
+/** Notify SSE / stream clients when trade messages update the cache (same Node process only). */
+type QuoteCacheListener = (updatedSymbols: readonly string[]) => void
+const quoteCacheListeners = new Set<QuoteCacheListener>()
+
+export function subscribeToQuoteCacheUpdates(listener: QuoteCacheListener): () => void {
+  quoteCacheListeners.add(listener)
+  return () => quoteCacheListeners.delete(listener)
+}
+
+function notifyQuoteCacheUpdated(symbols: readonly string[]): void {
+  if (!quoteCacheListeners.size || symbols.length === 0) return
+  for (const l of quoteCacheListeners) {
+    try {
+      l(symbols)
+    } catch {
+      /* ignore subscriber errors */
+    }
+  }
+}
+
 const quoteCache = new Map<string, FinnhubLiveQuote>()
 const subscribedSymbols = new Set<string>()
 let ws: WebSocket | null = null
@@ -21,6 +42,10 @@ function send(socket: WebSocket, payload: { type: string; symbol?: string }) {
   if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(payload))
 }
 
+function isPingMessage(msg: unknown): msg is FinnhubWsControlMessage {
+  return typeof msg === 'object' && msg !== null && (msg as FinnhubWsControlMessage).type === 'ping'
+}
+
 function subscribe(socket: WebSocket, symbol: string) {
   const sym = symbol.toUpperCase()
   if (subscribedSymbols.has(sym)) return
@@ -28,23 +53,41 @@ function subscribe(socket: WebSocket, symbol: string) {
   send(socket, { type: 'subscribe', symbol: sym })
 }
 
-function onMessage(data: Buffer | ArrayBuffer | Buffer[]) {
+function onMessage(socket: WebSocket, data: Buffer | ArrayBuffer | Buffer[]) {
   try {
     const raw = Buffer.isBuffer(data) ? data.toString('utf8') : Array.isArray(data) ? Buffer.concat(data).toString('utf8') : String(data)
-    const msg = JSON.parse(raw) as FinnhubTradeMessage
-    if (msg.type !== 'trade' || !Array.isArray(msg.data)) return
-    for (const item of msg.data) {
+    const msg = JSON.parse(raw) as FinnhubTradeMessage | FinnhubWsControlMessage | Record<string, unknown>
+    if (isPingMessage(msg)) {
+      send(socket, { type: 'pong' })
+      return
+    }
+    if (msg.type !== 'trade' || !Array.isArray((msg as FinnhubTradeMessage).data)) return
+    const trade = msg as FinnhubTradeMessage
+    const touched: string[] = []
+    for (const item of trade.data) {
       const sym = (item.s ?? '').toUpperCase()
       if (!sym) continue
-      quoteCache.set(sym, { symbol: sym, price: item.p, timestamp: item.t, volume: item.v })
+      quoteCache.set(sym, {
+        symbol: sym,
+        price: item.p,
+        timestamp: item.t,
+        volume: item.v,
+        webSocketUpdatedAt: item.t,
+      })
+      touched.push(sym)
     }
+    if (touched.length) notifyQuoteCacheUpdated([...new Set(touched)])
   } catch { /* ignore */ }
 }
 
 function safeClose(socket: WebSocket | null): void {
   if (!socket) return
   try {
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+    if (
+      socket.readyState === WebSocket.OPEN ||
+      socket.readyState === WebSocket.CONNECTING ||
+      socket.readyState === WebSocket.CLOSING
+    ) {
       socket.close()
     }
   } catch {
@@ -58,11 +101,20 @@ function connect(apiKey: string): WebSocket {
     reconnectAttempts = 0
     subscribedSymbols.forEach((sym) => send(socket, { type: 'subscribe', symbol: sym }))
   })
-  socket.on('message', onMessage)
+  socket.on('message', (data) => onMessage(socket, data))
+  socket.on('error', (err) => {
+    console.error('Live prices WebSocket error:', err)
+  })
   socket.on('close', () => {
+    // If we already replaced this socket (e.g. ensureSubscribed closed an old one), do not null `ws`.
+    if (ws !== socket) return
     ws = null
     if (reconnectAttempts < MAX_RECONNECT)
-      reconnectTimer = setTimeout(() => { reconnectAttempts++; reconnectTimer = null; ws = connect(apiKey) }, RECONNECT_MS)
+      reconnectTimer = setTimeout(() => {
+        reconnectAttempts++
+        reconnectTimer = null
+        ws = connect(apiKey)
+      }, RECONNECT_MS)
   })
   return socket
 }
@@ -73,9 +125,16 @@ function connect(apiKey: string): WebSocket {
  */
 export function ensureSubscribed(symbol: string, apiKey: string): void {
   if (!apiKey?.trim()) return
-  const needNewSocket = !ws || ws.readyState === WebSocket.CLOSED
+  const state = ws?.readyState
+  const needNewSocket =
+    !ws || state === WebSocket.CLOSED || state === WebSocket.CLOSING
   if (needNewSocket) {
-    if (ws) try { ws.close() } catch { /* ignore */ }
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+    safeClose(ws)
+    reconnectAttempts = 0
     ws = connect(apiKey)
   }
   subscribe(ws!, symbol)
