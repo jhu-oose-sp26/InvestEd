@@ -57,9 +57,11 @@
 ## About The Project
 A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
+## Live Demo: [InvestEd](https://invested-ivory.vercel.app/)
+
 ## Tech Stack
 
-- **Frontend**: Next.js 14 (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
+- **Frontend**: Next.js (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
 - **Backend**: Node.js with TypeScript, service-oriented architecture
 - **Database**: PostgreSQL with Prisma ORM
 - **Market Data**: PostgreSQL-backed historical price store; real-time via Finnhub
@@ -88,19 +90,6 @@ InvestEd/
 ├── .env                     # Environment variables (API Keys, DB URL)
 └── package.json
 ```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-### Built With
-
-* Next.js
-* Node.js
-* TypeScript
-* Tailwind CSS
-* Shadcn UI
-* PostgreSQL with Prisma ORM
-* PostgreSQL-backed historical price store
-* Real-time data via Finnhub
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -138,19 +127,17 @@ npm install
     - `POSTGRES_USER`
     - `POSTGRES_PASSWORD`
     - `POSTGRES_DB`
-    - `HOST`
-    - `PORT`
-    - `FINNHUB_API_KEY` 
-    - `ALPAKA_API_KEY`
-    - `ALPAKA_API_SECRET`
 
-4. Start Postgres
-3. Start Postgres (from the **project root** — same folder as `docker-compose.yml`):
+    Optional (real-time quotes, live strip, Markets page):
+    - `FINNHUB_API_KEY` – [Finnhub Dashboard](https://finnhub.io/dashboard). See `src/features/market-data/finnhub/REQUIREMENTS.md`.
+
+4. Start Postgres (from the **project root** — same folder as `docker-compose.yml`):
 
 ```bash
-    docker compose up -d
-    docker compose logs -f db
-  ```
+docker compose up -d
+docker compose logs -f db
+```
+
 5. Set up the database schema:
 
 ```bash
@@ -160,11 +147,13 @@ npm install
   # Push schema to database (or use migrations for production)
   npm run db:push
 ```
+
 6. Seed the placeholder API user (current routes use `temp-user-id`):
 
 ```bash
 psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_DB>" \
-  -c "INSERT INTO users (id,email,name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+  -c "INSERT INTO users (id,email,name,\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',NOW(),NOW()) ON CONFLICT (id) DO NOTHING; \
+      INSERT INTO portfolios (id,\"userId\",name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-portfolio-id','temp-user-id','My Portfolio',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
 ```
 
 7. Run the development server:
@@ -174,6 +163,72 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Error codes (JSON)
+
+When something goes wrong, many handlers return JSON in this shape:
+
+```json
+{ "error": "<short message for people using the app> (<CODE>)", "code": "<CODE>" }
+```
+
+The `error` string is meant for UI or support (wording avoids naming external data vendors or internal routes). The `code` is the same token repeated for easy search. **Developer reference** (what to check in logs or code) is defined once in [`src/lib/api/httpErrors.ts`](src/lib/api/httpErrors.ts). The table below mirrors the `dev` field for each code.
+
+| Code | Developer reference |
+|------|----------------------|
+| IE_GEN_001 | Unhandled exception in an API route; inspect server logs for the stack trace. |
+| IE_VAL_001 | Request query or body failed schema validation (e.g. Zod). Details logged server-side. |
+| IE_VAL_002 | Date parsing failed for start/end parameters. |
+| IE_VAL_003 | `start >= end` after parsing dates. |
+| IE_VAL_004 | `GET /api/live-quote` without a non-empty `symbol` query param. |
+| IE_VAL_005 | `GET /api/live-quotes` with empty or missing symbols list. |
+| IE_VAL_006 | `GET /api/bars` missing symbol, start, or end. |
+| IE_VAL_007 | `POST /api/trades` missing symbol, type, or quantity. |
+| IE_VAL_008 | `POST /api/trades` type not BUY or SELL. |
+| IE_VAL_009 | `GET /api/quote` missing symbol query param. |
+| IE_CFG_001 | `FINNHUB_API_KEY` missing or blank in server environment. |
+| IE_CFG_002 | Supabase not configured (HOST / POSTGRES_PASSWORD for candle pipeline). |
+| IE_MKT_001 | Finnhub rate limit (429) or equivalent from quote service. |
+| IE_MKT_002 | `getLiveQuote` returned null after REST/WebSocket attempts. |
+| IE_MKT_003 | Unexpected error from Finnhub client or live quote path (non-rate-limit). |
+| IE_MKT_004 | `GET /api/quote` provider threw or returned unusable data. |
+| IE_TRD_001 | `tradeService.executeTrade` returned `success: false` (business rule failure). |
+| IE_TRD_002 | Unhandled exception in `POST /api/trades`. |
+| IE_PFO_001 | Exception in `GET /api/portfolio`. |
+| IE_PFO_002 | Exception in `GET /api/portfolio/history`. |
+| IE_BAR_001 | Exception in `GET /api/bars` (ensureBars, Prisma, or bucketing). |
+| IE_CAN_001 | Supabase query error on `market_candles`. |
+| IE_CAN_002 | Unhandled exception in `GET /api/candles`. |
+| IE_QSN_001 | Supabase query error on `market_quote_snapshots`. |
+| IE_QSN_002 | Unhandled exception in `GET /api/quote-snapshots`. |
+| IE_QZ_404 | Custom quiz or question id not found. |
+| IE_QZ_403 | User does not own private quiz or lacks permission. |
+| IE_QZ_V01 | `POST /api/custom-quizzes`: title missing or blank. |
+| IE_QZ_V02 | Quiz title length > 200. |
+| IE_QZ_V03 | PATCH `isPublic: true` with zero questions. |
+| IE_QZ_V04 | PATCH quiz: title provided but empty string. |
+| IE_QZ_V05 | PATCH quiz: title too long. |
+| IE_QZ_V06 | POST question: prompt missing or blank. |
+| IE_QZ_V07 | POST question: `options` length not in [2, 6]. |
+| IE_QZ_V08 | POST question: an option string was blank. |
+| IE_QZ_V09 | `correctAnswer` not in `options`. |
+| IE_QZ_V10 | PATCH question: `options` length invalid. |
+| IE_QZ_V11 | PATCH question: empty option string. |
+| IE_QZ_V12 | PATCH question: `correctAnswer` not in new options set. |
+| IE_QZ_SRV | Unhandled Prisma or server error in custom-quiz routes. |
+| IE_QDAILY_001 | Quiz dataset missing (ENOENT) or not deployed. |
+| IE_QDAILY_002 | `getDailyQuestions` threw a non-ENOENT error. |
+| IE_QTR_001 | `GET /api/quarterly-reports` database or server error. |
+| IE_REP_001 | No rows in `quarterlyReport` table (pipeline not run). |
+| IE_REP_002 | Missing or invalid `left` / `right` query params after normalization. |
+| IE_REP_003 | `left` and `right` symbols are identical. |
+| IE_REP_004 | Symbol not present in loaded quarterly reports. |
+| IE_REP_005 | No common quarters between the two symbols. |
+| IE_REP_006 | Requested quarter not in common set for both symbols. |
+| IE_REP_007 | Unhandled error in report matchup/options handlers. |
+| IE_CLT_001 | Client `fetch` failed in `useLiveQuotes` (network or bad response). |
+| IE_CLT_002 | Client `fetch` failed in `useLivePrice` (network or bad response). |
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE EXAMPLES -->
@@ -221,7 +276,11 @@ const result = await tradeService.executeTrade({
 - [ ] Describe trading strategies in plain English (test ideas without learning to code)
 - [ ] Plain-English strategy automatically converted into executable code for testing
 
-See the [open issues]([REPO_URL]/issues) for a full list of proposed features (and known issues).
+See the [open issues](https://github.com/jhu-oose-sp26/InvestEd/issues) for a full list of proposed features (and known issues).
+
+### Finnhub real-time data flow
+
+The server keeps one WebSocket to Finnhub and an in-memory trade cache. Previous close is cached from an occasional REST `/quote` response; change and percent change are derived from the latest WebSocket price vs that previous close (reducing repeated `/quote` calls). The default WebSocket watchlist is defined in `src/features/market-data/finnhub/watchlistSymbols.ts`.
 
 <!-- CONTRIBUTING
 ## Contributing
@@ -238,11 +297,11 @@ See the [open issues]([REPO_URL]/issues) for a full list of proposed features (a
 <!-- CONTACT -->
 ## Contact
 
-- Mischa Kumar - [mkumar40@jh.edu](mailto:your_email@example.com)
-- Vicki Chen - [vchen30@jh.edu](mailto:your_email@example.com)
-- Misha Zhernevskii - [mzhernevskii@gmail.com](mailto:mzhernevskii@gmail.com)
-- Hanliang Xu - [hxu110@jh.edu](mailto:your_email@example.com)
-- Vrinda Sehgal - [vsehgal2@jh.edu](mailto:your_email@example.com)
+- Mischa Kumar - [mkumar40@jh.edu](mailto:mkumar40@jh.edu)
+- Vicki Chen - [vchen30@jh.edu](mailto:vchen30@jh.edu)
+- Misha Zhernevskii - [mzherne1@jh.edu](mailto:mzherne1@jh.edu)
+- Hanliang Xu - [hxu110@jh.edu](mailto:hxu110@jh.edu)
+- Vrinda Sehgal - [vsehgal2@jh.edu](mailto:vsehgal2@jh.edu)
 
 Project Link: [InvestEd](https://github.com/jhu-oose-sp26/InvestEd)
 
@@ -339,7 +398,7 @@ Calculates portfolio valuation from latest stored prices:
 
 ### Real-time data (Finnhub)
 
-Data flow: server keeps one WebSocket to Finnhub and an in-memory cache; when the UI requests a quote, the app returns from cache or the REST Quote API. Change and percent change come from REST (WebSocket stream does not include them). Default WebSocket watchlist: 35 symbols in `src/features/market-data/finnhub/watchlistSymbols.ts`.
+Data flow: WebSocket trade stream for price updates; previous close is seeded from REST and reused so change / % move vs prior close stay accurate without polling `/quote` every request. Default WebSocket watchlist: `src/features/market-data/finnhub/watchlistSymbols.ts`.
 
 ## Database Schema
 

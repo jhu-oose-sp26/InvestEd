@@ -1,23 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getPortfolioValueHistory } from '@/features/portfolio/PortfolioHistoryService'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const portfolioId = request.nextUrl.searchParams.get('portfolioId')
-    if (!portfolioId) {
-      return NextResponse.json(
-        { error: 'Missing required query parameter: portfolioId' },
-        { status: 400 }
-      )
-    }
+    const userId = 'temp-user-id'
 
-    const points = await getPortfolioValueHistory(portfolioId)
+    const points = await getPortfolioValueHistory(userId)
     return NextResponse.json({ points })
   } catch (error) {
     console.error('Portfolio history API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return httpErrorResponse('IE_PFO_002', 500)
   }
 }

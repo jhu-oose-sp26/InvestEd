@@ -1,33 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
 
-const userId = 'temp-user-id' // Replace with actual user ID from session
+const userId = 'temp-user-id'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
     const quiz = await prisma.customQuiz.findUnique({ where: { id } })
 
-    if (!quiz) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    if (quiz.userId !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!quiz) return NextResponse.json(httpErrorBody('IE_QZ_404'), { status: 404 })
+    if (quiz.userId !== userId) return NextResponse.json(httpErrorBody('IE_QZ_403'), { status: 403 })
 
     const body = await request.json()
     const { prompt, options, correctAnswer, context, order } = body
 
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
-      return NextResponse.json({ error: 'prompt is required' }, { status: 400 })
+      return httpErrorResponse('IE_QZ_V06', 400)
     }
     if (!Array.isArray(options) || options.length < 2 || options.length > 6) {
-      return NextResponse.json({ error: 'options must be an array of 2–6 strings' }, { status: 400 })
+      return httpErrorResponse('IE_QZ_V07', 400)
     }
-    if (options.some((o) => typeof o !== 'string' || o.trim().length === 0)) {
-      return NextResponse.json({ error: 'each option must be a non-empty string' }, { status: 400 })
+    if (options.some((o: unknown) => typeof o !== 'string' || String(o).trim().length === 0)) {
+      return httpErrorResponse('IE_QZ_V08', 400)
     }
     if (!correctAnswer || !options.includes(correctAnswer)) {
-      return NextResponse.json({ error: 'correctAnswer must be one of the options' }, { status: 400 })
+      return httpErrorResponse('IE_QZ_V09', 400)
     }
 
-    // Auto-assign order as max existing + 1 if not provided
     let questionOrder = typeof order === 'number' ? order : 0
     if (typeof order !== 'number') {
       const last = await prisma.customQuizQuestion.findFirst({
@@ -51,6 +51,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json(question, { status: 201 })
   } catch (error) {
     console.error('POST /api/custom-quizzes/[id]/questions error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return httpErrorResponse('IE_QZ_SRV', 500)
   }
 }

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getSupabaseServiceClient, isSupabaseConfigured } from '@candle-supabase-pipeline'
+import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
 
 const querySchema = z.object({
   symbol: z.string().min(1).transform((s) => s.trim().toUpperCase()),
@@ -18,35 +19,24 @@ const querySchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     if (!isSupabaseConfigured()) {
-      return NextResponse.json(
-        {
-          error: 'Supabase is not configured',
-          hint: 'Set HOST (Supabase project URL) and POSTGRES_PASSWORD (service_role key) and apply supabase/migrations',
-        },
-        { status: 503 },
-      )
+      return httpErrorResponse('IE_CFG_002', 503)
     }
 
     const params = Object.fromEntries(request.nextUrl.searchParams.entries())
     const parsed = querySchema.safeParse(params)
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Invalid query', details: parsed.error.flatten() },
-        { status: 400 },
-      )
+      console.warn('GET /api/quote-snapshots validation:', parsed.error.flatten())
+      return httpErrorResponse('IE_VAL_001', 400)
     }
 
     const { symbol, start, end } = parsed.data
     const startDate = new Date(start)
     const endDate = new Date(end)
     if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid start or end. Use ISO 8601 timestamps.' },
-        { status: 400 },
-      )
+      return httpErrorResponse('IE_VAL_002', 400)
     }
     if (startDate >= endDate) {
-      return NextResponse.json({ error: 'start must be before end' }, { status: 400 })
+      return httpErrorResponse('IE_VAL_003', 400)
     }
 
     const supabase = getSupabaseServiceClient()
@@ -63,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Supabase quote-snapshots query error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json(httpErrorBody('IE_QSN_001'), { status: 500 })
     }
 
     type QuoteDbRow = {
@@ -99,9 +89,6 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Quote snapshots API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 },
-    )
+    return httpErrorResponse('IE_QSN_002', 500)
   }
 }

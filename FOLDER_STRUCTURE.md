@@ -17,8 +17,12 @@ InvestEd/
 │   │   ├── api/                    # API routes
 │   │   │   ├── trades/
 │   │   │   │   └── route.ts        # POST /api/trades - Execute trade
-│   │   │   ├── portfolio/
-│   │   │   │   └── route.ts        # GET /api/portfolio - Get portfolio summary
+│   │   │   ├── portfolios/
+│   │   │   │   ├── route.ts        # POST /api/portfolios - Create portfolio
+│   │   │   │   └── [id]/
+│   │   │   │       ├── route.ts    # GET /api/portfolios/[id] - Summary
+│   │   │   │       └── history/
+│   │   │   │           └── route.ts # GET /api/portfolios/[id]/history
 │   │   │   ├── quote/
 │   │   │   │   └── route.ts        # GET /api/quote - Get latest stored quote
 │   │   │   ├── live-quote/
@@ -47,14 +51,9 @@ InvestEd/
 │       ├── useLivePrice.ts         # Single-symbol live price (trade page, tickers)
 │       └── useLiveQuotes.ts         # Multi-symbol (portfolio graphs, dashboards)
 ├── .env.example                    # Environment variables template
-├── finnhub_data_pipeline/          # Finnhub real-time (WebSocket + REST)
-│   ├── types.ts                    # Finnhub API types
-│   ├── finnhubRestClient.ts        # REST Quote client
-│   ├── finnhubWebSocketClient.ts   # WebSocket trade stream + cache
-│   ├── finnhubLiveQuoteService.ts  # getLiveQuote / getLiveQuotes
-│   ├── index.ts                    # Public API for app & graphs
-│   ├── REQUIREMENTS.md             # API key, WebSocket vs REST, where data is stored, UI (strip, Markets)
-│   └── README.md                   # Overview
+├── finnhub_data_pipeline/
+│   └── index.ts                    # `@finnhub-data-pipeline` barrel (re-exports src/features/.../finnhub)
+├── alpaca_data_pipeline/           # Alpaca 1m bars (TS) for charts / Prisma ingest
 ├── candle_supabase_pipeline/       # Supabase load: Alpaca 1m bars + Finnhub /quote snapshots
 ├── supabase/migrations/            # SQL for market_candles + market_quote_snapshots
 ├── market_data_pipeline/           # S3 to Postgres ingestion scripts
@@ -85,7 +84,7 @@ InvestEd/
 
 ### API Routes
 - **/api/trades**: POST endpoint for executing trades
-- **/api/portfolio**: GET endpoint for portfolio summary
+- **/api/portfolios**: POST create portfolio; **/api/portfolios/[id]** GET summary; **/api/portfolios/[id]/history** GET history
 - **/api/quote**: GET endpoint for latest stored quote by symbol
 - **/api/live-quote**: GET ?symbol=AAPL – Finnhub real-time single quote
 - **/api/live-quotes**: GET ?symbols=AAPL,MSFT – Finnhub real-time multi (for graphs)

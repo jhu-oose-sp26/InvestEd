@@ -4,7 +4,8 @@
  */
 
 export { getLiveQuote, getLiveQuotes } from './finnhubLiveQuoteService'
-export { fetchFinnhubQuoteSnapshot, fetchFinnhubQuote, fetchFinnhubCompanyProfile } from './finnhubRestClient'
+export type { GetLiveQuoteOptions } from './finnhubLiveQuoteService'
+export { fetchFinnhubCompanyNews, fetchFinnhubCompanyProfile, fetchFinnhubQuoteSnapshot } from './finnhubRestClient'
 export { FINNHUB_WATCHLIST_SYMBOLS } from './watchlistSymbols'
 export { getSubscribedSymbols } from './finnhubWebSocketClient'
 export type { FinnhubLiveQuote, FinnhubQuoteResponse, FinnhubTradeItem, FinnhubTradeMessage, FinnhubQuoteSnapshot } from './types'

@@ -49,7 +49,7 @@
 - ✅ **Portfolio Page** (`/portfolio`): Dashboard with positions and P&L
 - ✅ **API Routes**:
   - `POST /api/trades`: Execute trade
-  - `GET /api/portfolio`: Get portfolio summary
+  - `GET /api/portfolios/[id]`: Get portfolio summary
   - `GET /api/quote`: Fetch latest stored quote for a symbol
 
 ### 7. Configuration Files

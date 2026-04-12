@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDailyQuestions } from '@/features/quiz/quizService'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
 function getDateString(req: NextRequest): string {
   const dateParam = req.nextUrl.searchParams.get('date')
@@ -17,8 +18,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result)
   } catch (error) {
     console.error('Quiz questions API error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to load quiz questions'
-    const status = message.includes('ENOENT') || message.includes('not found') ? 503 : 500
-    return NextResponse.json({ error: message }, { status })
+    const message = error instanceof Error ? error.message : ''
+    const noData = message.includes('ENOENT') || message.includes('not found')
+    if (noData) {
+      return httpErrorResponse('IE_QDAILY_001', 503)
+    }
+    return httpErrorResponse('IE_QDAILY_002', 500)
   }
 }

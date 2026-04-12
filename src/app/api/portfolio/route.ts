@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { portfolioService } from '@/features/portfolio/PortfolioService'
 import { fetchFinnhubCompanyProfile } from '@/features/market-data/finnhub'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
 export async function GET(request: NextRequest) {
   try {
-    const portfolioId = request.nextUrl.searchParams.get('portfolioId')
-    if (!portfolioId) {
-      return NextResponse.json(
-        { error: 'Missing required query parameter: portfolioId' },
-        { status: 400 }
-      )
-    }
+    // TODO: Get userId from authentication session
+    // For now, using a placeholder userId - replace with actual auth
+    const userId = 'temp-user-id' // Replace with actual user ID from session
 
-    const summary = await portfolioService.getPortfolioSummary(portfolioId)
+    const summary = await portfolioService.getPortfolioSummary(userId)
 
     const apiKey = process.env.FINNHUB_API_KEY
     if (apiKey?.trim() && summary.positions.length > 0) {
@@ -33,10 +30,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(summary)
   } catch (error) {
     console.error('Portfolio API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return httpErrorResponse('IE_PFO_001', 500)
   }
 }
 

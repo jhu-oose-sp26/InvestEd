@@ -22,3 +22,12 @@ export interface PortfolioSummary {
     positions: PositionValue[]
     predictionPositionsValue?: number
 }
+
+export interface LeaderboardEntry {
+    rank: number
+    portfolioId: string
+    portfolioName: string
+    userId: string
+    displayName: string
+    totalPortfolioValue: number
+}

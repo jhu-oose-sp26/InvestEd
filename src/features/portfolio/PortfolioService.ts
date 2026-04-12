@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getMarketDataProvider } from '../market-data/MarketDataProvider'
 import type { PositionValue, PortfolioSummary } from '@/types'
+import { computePositionValuesFromPriceMap } from './portfolioValuation'
 
 // Re-export types for backward compatibility
 export type { PositionValue, PortfolioSummary } from '@/types'
@@ -75,26 +76,7 @@ export class PortfolioService {
     // Create a map for quick lookup
     const priceMap = new Map(quotes.map((q) => [q.symbol, q.price]))
 
-    // Calculate position values
-    type PositionRow = (typeof positions)[number]
-    const positionValues: PositionValue[] = positions.map((position: PositionRow) => {
-      const currentPrice = priceMap.get(position.symbol) ?? position.averageBuyPrice.toNumber()
-      const totalCost = position.averageBuyPrice.times(position.quantity).toNumber()
-      const currentValue = currentPrice * position.quantity
-      const unrealizedPnL = currentValue - totalCost
-      const unrealizedPnLPercent = totalCost > 0 ? (unrealizedPnL / totalCost) * 100 : 0
-
-      return {
-        symbol: position.symbol,
-        quantity: position.quantity,
-        averageBuyPrice: position.averageBuyPrice.toNumber(),
-        currentPrice,
-        totalCost,
-        currentValue,
-        unrealizedPnL,
-        unrealizedPnLPercent,
-      }
-    })
+    const positionValues: PositionValue[] = computePositionValuesFromPriceMap(positions, priceMap)
 
     // Calculate totals
     const totalCash = portfolio.cashBalance.toNumber()
