@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { portfolioService } from '@/features/portfolio/PortfolioService'
 import { fetchFinnhubCompanyProfile } from '@finnhub-data-pipeline'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,10 +30,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(summary)
   } catch (error) {
     console.error('Portfolio API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return httpErrorResponse('IE_PFO_001', 500)
   }
 }
 

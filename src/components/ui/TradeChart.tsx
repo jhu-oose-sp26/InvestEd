@@ -101,7 +101,7 @@ export function TradeChart({ symbol, historicalBars, livePrice }: TradeChartProp
     }
   }, [historicalBars])
 
-  // 2) Live Finnhub Update tick
+  // 2) Live price update tick
   useEffect(() => {
     if (!seriesRef.current || !historicalBars.length || livePrice == null) return
 
@@ -162,6 +162,23 @@ export function TradeChart({ symbol, historicalBars, livePrice }: TradeChartProp
     }
 
   }, [livePrice, historicalBars])
+
+  if (historicalBars.length === 0) {
+    return (
+      <div className="w-full flex-col flex space-y-2 border rounded-xl overflow-hidden p-4 bg-card/50">
+        <div className="flex justify-between items-center text-sm px-2">
+          <span className="font-semibold text-muted-foreground">{symbol.toUpperCase()} Candlestick History</span>
+          <span className="font-medium">15M Interval</span>
+        </div>
+        <div className="h-[400px] flex items-center justify-center px-4 border border-dashed rounded-lg bg-muted/20">
+          <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+            No candlesticks for this symbol and date range. The market may have been closed that day,
+            or we don&apos;t have saved price history for that range yet.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full flex-col flex space-y-2 border rounded-xl overflow-hidden p-4 bg-card/50">

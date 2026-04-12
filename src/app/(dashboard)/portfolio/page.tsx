@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { DATA_UNAVAILABLE, softenPublicErrorMessage } from "@/lib/userFacingMessages"
 import {
   PieChart,
   Pie,
@@ -53,16 +54,28 @@ export default function PortfolioPage() {
           fetch("/api/portfolio"),
           fetch("/api/portfolio/history"),
         ])
-        if (!portfolioRes.ok) throw new Error("Failed to fetch portfolio")
-        if (!historyRes.ok) throw new Error("Failed to fetch portfolio history")
         const [portfolioData, historyData] = await Promise.all([
-          portfolioRes.json(),
-          historyRes.json(),
+          portfolioRes.json().catch(() => ({})),
+          historyRes.json().catch(() => ({})),
         ])
+        if (!portfolioRes.ok) {
+          const msg =
+            typeof portfolioData?.error === "string"
+              ? softenPublicErrorMessage(portfolioData.error)
+              : DATA_UNAVAILABLE.portfolioMissing
+          throw new Error(msg)
+        }
+        if (!historyRes.ok) {
+          const msg =
+            typeof historyData?.error === "string"
+              ? softenPublicErrorMessage(historyData.error)
+              : "We couldn’t load portfolio history. Please try again."
+          throw new Error(msg)
+        }
         setPortfolio(portfolioData)
-        setHistory(historyData.points as PortfolioHistoryPoint[])
+        setHistory((historyData.points as PortfolioHistoryPoint[]) ?? [])
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred")
+        setError(err instanceof Error ? err.message : "Something went wrong while loading your portfolio.")
       } finally {
         setLoading(false)
       }
@@ -71,15 +84,28 @@ export default function PortfolioPage() {
   }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading portfolio...</div>
+    return (
+      <div className="text-center py-8 text-muted-foreground animate-pulse">
+        Loading your portfolio…
+      </div>
+    )
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-600">Error: {error}</div>
+    return (
+      <div className="max-w-lg mx-auto text-center py-10 px-4 rounded-lg border bg-card">
+        <p className="font-medium text-foreground">We couldn’t load your portfolio</p>
+        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{error}</p>
+      </div>
+    )
   }
 
   if (!portfolio) {
-    return <div className="text-center py-8">No portfolio data available</div>
+    return (
+      <div className="max-w-lg mx-auto text-center py-10 px-4 text-muted-foreground leading-relaxed">
+        {DATA_UNAVAILABLE.portfolioMissing}
+      </div>
+    )
   }
 
   const formatCurrency = (value: number) => {
@@ -217,8 +243,10 @@ export default function PortfolioPage() {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            No history to display
+          <div className="h-64 flex items-center justify-center px-4">
+            <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+              {DATA_UNAVAILABLE.portfolioHistory}
+            </p>
           </div>
         )}
       </div>
@@ -227,8 +255,10 @@ export default function PortfolioPage() {
       <div className="border rounded-lg p-4 mb-8">
         <h2 className="text-xl font-semibold mb-4">Allocation</h2>
         {pieData.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            No allocation data yet
+          <div className="h-64 flex items-center justify-center px-4">
+            <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+              {DATA_UNAVAILABLE.portfolioAllocation}
+            </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
@@ -266,10 +296,12 @@ export default function PortfolioPage() {
           Breakdown of your current investments by sector.
         </p>
         {sectorPieData.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            {portfolio.positions.length === 0
-              ? 'No positions yet'
-              : 'Sector data unavailable. Set FINNHUB_API_KEY in .env to see sector breakdown.'}
+          <div className="h-64 flex items-center justify-center px-4">
+            <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+              {portfolio.positions.length === 0
+                ? DATA_UNAVAILABLE.portfolioPositions
+                : DATA_UNAVAILABLE.portfolioSector}
+            </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
@@ -304,7 +336,9 @@ export default function PortfolioPage() {
       <div className="border rounded-lg overflow-hidden">
         <h2 className="text-xl font-semibold p-4 border-b">Positions</h2>
         {portfolio.positions.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No positions yet</div>
+          <div className="p-8 text-center text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+            {DATA_UNAVAILABLE.portfolioPositions}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">

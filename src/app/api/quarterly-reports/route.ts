@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
 /** GET /api/quarterly-reports — list available reports, optionally filtered by symbol */
 export async function GET(request: NextRequest) {
@@ -22,6 +23,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(reports)
   } catch (error) {
     console.error('GET /api/quarterly-reports error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return httpErrorResponse('IE_QTR_001', 500)
   }
 }

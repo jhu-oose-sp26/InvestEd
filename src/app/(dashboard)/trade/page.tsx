@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { useLivePrice } from "@/hooks/useLivePrice"
 import { TradeChart, HistoricalBar } from "@/components/ui/TradeChart"
+import { DATA_UNAVAILABLE, softenPublicErrorMessage } from "@/lib/userFacingMessages"
+import { UsMarketTradingHoursCollapsible } from "@/components/UsMarketTradingHoursCollapsible"
 
 export default function TradePage() {
   const [symbol, setSymbol] = useState("")
@@ -14,19 +16,21 @@ export default function TradePage() {
 
   const [historicalBars, setHistoricalBars] = useState<HistoricalBar[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyMessage, setHistoryMessage] = useState<string | null>(null)
 
-  // Polling every 1s for the "fat moving point" live chart action
   const { price: livePrice, loading: livePriceLoading, error: livePriceError, refetch: refetchPrice } = useLivePrice(symbolToLookup, 1000)
 
   // Fetch 4 hours of historical 15-minute bars when symbol is chosen
   useEffect(() => {
     if (!symbolToLookup) {
       setHistoricalBars([])
+      setHistoryMessage(null)
       return
     }
 
     async function fetchHistory() {
       setHistoryLoading(true)
+      setHistoryMessage(null)
       try {
         const isToday = selectedDate === new Date().toISOString().split("T")[0]
         let start: Date
@@ -44,14 +48,24 @@ export default function TradePage() {
         const res = await fetch(
           `/api/bars?symbol=${encodeURIComponent(symbolToLookup)}&start=${start.toISOString()}&end=${end.toISOString()}`
         )
+        const data = await res.json().catch(() => ({}))
         if (res.ok) {
-          const data = await res.json()
-          setHistoricalBars(data.bars || [])
+          setHistoricalBars(Array.isArray(data.bars) ? data.bars : [])
+          setHistoryMessage(null)
         } else {
           setHistoricalBars([])
+          setHistoryMessage(
+            typeof data?.error === "string"
+              ? softenPublicErrorMessage(data.error)
+              : DATA_UNAVAILABLE.chartNoBars,
+          )
         }
       } catch (err) {
         console.error("Failed to fetch history:", err)
+        setHistoricalBars([])
+        setHistoryMessage(
+          "We couldn’t load the chart. Check your internet connection and try again.",
+        )
       } finally {
         setHistoryLoading(false)
       }
@@ -78,12 +92,17 @@ export default function TradePage() {
       const data = await response.json()
 
       if (response.ok) {
-        setMessage({ type: "success", text: `Trade executed successfully! Trade ID: ${data.tradeId}` })
+        setMessage({ type: "success", text: "Your trade was submitted successfully." })
         setSymbol("")
         setSymbolToLookup("")
         setQuantity("")
       } else {
-        setMessage({ type: "error", text: data.error || "Failed to execute trade" })
+        setMessage({
+          type: "error",
+          text: softenPublicErrorMessage(
+            typeof data?.error === "string" ? data.error : "We couldn’t complete that trade. Please try again.",
+          ),
+        })
       }
     } catch (error) {
       setMessage({ type: "error", text: "An error occurred while executing the trade" })
@@ -94,12 +113,16 @@ export default function TradePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Live Trading Terminal</h1>
-        <p className="text-muted-foreground text-sm">
-          Look up a stock symbol to view its live chart and execute trades.
-        </p>
-      </div>
+      <UsMarketTradingHoursCollapsible
+        leading={
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Live Trading Terminal</h1>
+            <p className="text-muted-foreground text-sm">
+              Look up a stock symbol to view its live chart and execute trades.
+            </p>
+          </div>
+        }
+      />
 
       <div className="bg-card border rounded-xl p-6">
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -150,20 +173,28 @@ export default function TradePage() {
           )}
 
           {symbolToLookup && (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 space-y-1">
               <p className="text-sm font-medium text-muted-foreground">
                 {livePriceLoading && !livePrice && "Loading live price…"}
                 {livePrice != null && (
                   <span className="text-foreground">
                     Live Price: <span className="font-bold text-lg">${livePrice.toFixed(2)}</span>
-                    {livePriceError && " (stale)"}
+                  </span>
+                )}
+                {livePrice != null && livePriceError && (
+                  <span className="block text-amber-700 text-xs font-normal mt-1 max-w-xl">
+                    {DATA_UNAVAILABLE.livePriceStale}
                   </span>
                 )}
                 {!livePriceLoading && livePrice == null && livePriceError && (
-                  <span className="text-red-600">Failed to get quote: {livePriceError}</span>
+                  <span className="text-red-600 text-sm block max-w-xl">
+                    {softenPublicErrorMessage(livePriceError)}
+                  </span>
                 )}
                 {!livePriceLoading && livePrice == null && !livePriceError && (
-                  <span className="text-muted-foreground">No price found for {symbolToLookup}.</span>
+                  <span className="text-muted-foreground text-sm block max-w-xl">
+                    {DATA_UNAVAILABLE.livePriceNone}
+                  </span>
                 )}
               </p>
             </div>
@@ -175,7 +206,13 @@ export default function TradePage() {
             {/* Chart Area */}
             {historyLoading && historicalBars.length === 0 ? (
               <div className="h-[400px] flex items-center justify-center border rounded-xl bg-card">
-                <p className="text-muted-foreground animate-pulse">Fetching candlestick history...</p>
+                <p className="text-muted-foreground animate-pulse">Loading chart…</p>
+              </div>
+            ) : historyMessage && historicalBars.length === 0 ? (
+              <div className="h-[400px] flex items-center justify-center border rounded-xl bg-card px-4">
+                <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+                  {historyMessage}
+                </p>
               </div>
             ) : (
               <TradeChart

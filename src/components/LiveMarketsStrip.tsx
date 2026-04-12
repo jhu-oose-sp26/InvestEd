@@ -1,53 +1,75 @@
 "use client"
 
-import { useLiveQuotes } from "@/hooks/useLiveQuotes"
+import { useLiveQuotesStream } from "@/hooks/useLiveQuotesStream"
 import { DEFAULT_LIVE_MARKETS_SYMBOLS } from "@/lib/live-markets-symbols"
-
-/** Poll interval for live prices (ms). Kept high to avoid Finnhub rate limits. */
-const POLL_INTERVAL_MS = 12000
+import { DATA_UNAVAILABLE, softenPublicErrorMessage } from "@/lib/userFacingMessages"
 
 const SYMBOLS = [...DEFAULT_LIVE_MARKETS_SYMBOLS]
 
-export function LiveMarketsStrip() {
-  const { quotes, loading, error } = useLiveQuotes(SYMBOLS, POLL_INTERVAL_MS)
+function stripMessage(error: string | null): string {
+  if (error?.trim()) return softenPublicErrorMessage(error.trim())
+  return "Live prices aren’t available right now. Try again in a moment."
+}
 
-  if (error) {
-    return (
-      <div className="border-b bg-muted/30 px-4 py-2 text-center text-sm text-muted-foreground">
-        Live prices unavailable. Set FINNHUB_API_KEY in .env for real-time data.
-      </div>
-    )
-  }
+export function LiveMarketsStrip() {
+  const { quotes, loading, error } = useLiveQuotesStream(SYMBOLS)
+
+  const hasLiveData = quotes.length > 0
+  const isLoadingMode = loading && !hasLiveData
+  const isLiveMode = hasLiveData
+  const isMessageMode = !isLiveMode && !isLoadingMode
 
   return (
     <div className="border-b bg-muted/20 overflow-hidden">
-      <div className="flex items-center gap-1 px-4 py-2 text-sm">
+      <div className="flex items-center gap-2 px-4 py-2 text-sm">
         <span className="shrink-0 font-medium text-muted-foreground">Live</span>
-        <div className="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto py-1">
-          {loading && quotes.length === 0 ? (
-            <span className="text-muted-foreground">Loading…</span>
-          ) : (
-            quotes.map((q) => (
+
+        {isLiveMode ? (
+          <div className="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto py-1">
+            {quotes.map((q) => (
               <div
                 key={q.symbol}
                 className="flex shrink-0 items-center gap-2 rounded px-2 py-0.5 font-mono"
+                title={
+                  q.change == null || q.percentChange == null
+                    ? DATA_UNAVAILABLE.changeVsClose
+                    : undefined
+                }
               >
                 <span className="font-semibold">{q.symbol}</span>
                 <span>${q.price.toFixed(2)}</span>
-                {q.change != null && (
+                {q.change != null ? (
                   <span
                     className={
                       q.change >= 0 ? "text-emerald-600" : "text-red-600"
                     }
                   >
                     {q.change >= 0 ? "+" : ""}
-                    {q.change.toFixed(2)} ({q.percentChange != null ? (q.percentChange >= 0 ? "+" : "") + q.percentChange.toFixed(2) : "—"}%)
+                    {q.change.toFixed(2)} (
+                    {q.percentChange != null
+                      ? (q.percentChange >= 0 ? "+" : "") + q.percentChange.toFixed(2)
+                      : "—"}
+                    %)
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-xs font-sans whitespace-nowrap">
+                    Change n/a
                   </span>
                 )}
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : isLoadingMode ? (
+          <div className="flex min-w-0 flex-1 items-center py-1">
+            <span className="text-muted-foreground animate-pulse">Loading prices…</span>
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-1 items-center py-1">
+            <p className="text-muted-foreground text-center sm:text-left">
+              {stripMessage(error)}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

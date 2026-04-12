@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getPortfolioValueHistory } from '@/features/portfolio/PortfolioHistoryService'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
 export async function GET() {
   try {
@@ -9,9 +10,6 @@ export async function GET() {
     return NextResponse.json({ points })
   } catch (error) {
     console.error('Portfolio history API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
-    )
+    return httpErrorResponse('IE_PFO_002', 500)
   }
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
-const userId = 'temp-user-id' // Replace with actual user ID from session
+const userId = 'temp-user-id'
 
 export async function GET() {
   try {
@@ -13,7 +14,7 @@ export async function GET() {
     return NextResponse.json(quizzes)
   } catch (error) {
     console.error('GET /api/custom-quizzes error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return httpErrorResponse('IE_QZ_SRV', 500)
   }
 }
 
@@ -23,10 +24,10 @@ export async function POST(request: NextRequest) {
     const { title, description, isPublic } = body
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return NextResponse.json({ error: 'title is required' }, { status: 400 })
+      return httpErrorResponse('IE_QZ_V01', 400)
     }
     if (title.length > 200) {
-      return NextResponse.json({ error: 'title must be 200 characters or fewer' }, { status: 400 })
+      return httpErrorResponse('IE_QZ_V02', 400)
     }
 
     const quiz = await prisma.customQuiz.create({
@@ -41,6 +42,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(quiz, { status: 201 })
   } catch (error) {
     console.error('POST /api/custom-quizzes error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return httpErrorResponse('IE_QZ_SRV', 500)
   }
 }

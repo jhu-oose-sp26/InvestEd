@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ensureBars } from '@alpaca-data-pipeline/alpacaBarService'
 import { prisma } from '@/lib/prisma'
+import { httpErrorResponse } from '@/lib/api/httpErrors'
 
 export async function GET(request: NextRequest) {
     try {
@@ -18,10 +19,7 @@ export async function GET(request: NextRequest) {
         const endRaw = params.get('end')
 
         if (!symbol || !startRaw || !endRaw) {
-            return NextResponse.json(
-                { error: 'Missing required query parameters: symbol, start, end' },
-                { status: 400 },
-            )
+            return httpErrorResponse('IE_VAL_006', 400)
         }
 
         const start = new Date(startRaw)
@@ -33,17 +31,11 @@ export async function GET(request: NextRequest) {
         }
 
         if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-            return NextResponse.json(
-                { error: 'Invalid date format for start or end. Use ISO 8601.' },
-                { status: 400 },
-            )
+            return httpErrorResponse('IE_VAL_002', 400)
         }
 
         if (start >= end) {
-            return NextResponse.json(
-                { error: 'start must be before end' },
-                { status: 400 },
-            )
+            return httpErrorResponse('IE_VAL_003', 400)
         }
 
         // Ensure the DB has all bars for this range (fetches from Alpaca if needed)
@@ -116,9 +108,6 @@ export async function GET(request: NextRequest) {
         })
     } catch (error) {
         console.error('Bars API error:', error)
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Internal server error' },
-            { status: 500 },
-        )
+        return httpErrorResponse('IE_BAR_001', 500)
     }
 }
