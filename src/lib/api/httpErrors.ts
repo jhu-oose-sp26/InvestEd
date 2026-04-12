@@ -4,6 +4,7 @@
  */
 
 import { NextResponse } from 'next/server'
+import { PORTFOLIO_ERRORS } from '@/lib/userFacingMessages'
 
 export const HTTP_ERROR_CATALOG = {
   IE_GEN_001: {
@@ -84,11 +85,11 @@ export const HTTP_ERROR_CATALOG = {
   },
 
   IE_PFO_001: {
-    user: 'We could not load your portfolio. Please try again.',
+    user: PORTFOLIO_ERRORS.loadFailed,
     dev: 'Exception in GET /api/portfolio.',
   },
   IE_PFO_002: {
-    user: 'We could not load your portfolio history. Please try again.',
+    user: PORTFOLIO_ERRORS.historyLoadFailed,
     dev: 'Exception in GET /api/portfolio/history.',
   },
 

@@ -9,6 +9,12 @@ export function softenPublicErrorMessage(message: string): string {
   return trimmed || message.trim()
 }
 
+/** Aligned with IE_PFO_* in `httpErrors` — use for portfolio API failures and UI. */
+export const PORTFOLIO_ERRORS = {
+  loadFailed: "We could not load your portfolio. Please try again.",
+  historyLoadFailed: "We could not load your portfolio history. Please try again.",
+} as const
+
 export const DATA_UNAVAILABLE = {
   marketPriceRow:
     "We don’t have a price for this symbol right now. It may be outside trading hours, lightly traded, or temporarily unavailable.",
@@ -32,7 +38,7 @@ export const DATA_UNAVAILABLE = {
   livePriceNone:
     "We couldn’t load a current price for this symbol. It may be invalid, the market may be closed, or prices may be temporarily unavailable.",
   portfolioMissing:
-    "We couldn’t load your portfolio summary. Try refreshing the page, or sign in again if the problem continues.",
+    `${PORTFOLIO_ERRORS.loadFailed} If this keeps happening, refresh the page or sign in again.`,
   portfolioHistory:
     "There’s no saved value history to show yet. It builds after you hold positions and prices update.",
   portfolioAllocation:

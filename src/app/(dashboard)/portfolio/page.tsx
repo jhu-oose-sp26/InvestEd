@@ -1,7 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { DATA_UNAVAILABLE, softenPublicErrorMessage } from "@/lib/userFacingMessages"
+import {
+  DATA_UNAVAILABLE,
+  PORTFOLIO_ERRORS,
+  softenPublicErrorMessage,
+} from "@/lib/userFacingMessages"
 import {
   PieChart,
   Pie,
@@ -51,8 +55,8 @@ export default function PortfolioPage() {
     const load = async () => {
       try {
         const [portfolioRes, historyRes] = await Promise.all([
-          fetch("/api/portfolio"),
-          fetch("/api/portfolio/history"),
+          fetch("/api/portfolio", { credentials: "include" }),
+          fetch("/api/portfolio/history", { credentials: "include" }),
         ])
         const [portfolioData, historyData] = await Promise.all([
           portfolioRes.json().catch(() => ({})),
@@ -69,13 +73,13 @@ export default function PortfolioPage() {
           const msg =
             typeof historyData?.error === "string"
               ? softenPublicErrorMessage(historyData.error)
-              : "We couldn’t load portfolio history. Please try again."
+              : PORTFOLIO_ERRORS.historyLoadFailed
           throw new Error(msg)
         }
         setPortfolio(portfolioData)
         setHistory((historyData.points as PortfolioHistoryPoint[]) ?? [])
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong while loading your portfolio.")
+        setError(err instanceof Error ? err.message : PORTFOLIO_ERRORS.loadFailed)
       } finally {
         setLoading(false)
       }
@@ -94,8 +98,7 @@ export default function PortfolioPage() {
   if (error) {
     return (
       <div className="max-w-lg mx-auto text-center py-10 px-4 rounded-lg border bg-card">
-        <p className="font-medium text-foreground">We couldn’t load your portfolio</p>
-        <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{error}</p>
+        <p className="text-sm font-medium text-foreground leading-relaxed">{error}</p>
       </div>
     )
   }
