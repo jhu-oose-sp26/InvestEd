@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { publicAccountLabel } from '@/lib/auth/userPublicHandle'
 import type { StreakLeaderboardEntry } from '@/types/quiz'
 import {
   computeDisplayCurrentStreakFromMap,
@@ -40,7 +41,7 @@ export class StreakLeaderboardService {
 
     const [users, results] = await Promise.all([
       prisma.user.findMany({
-        select: { id: true, name: true },
+        select: { id: true, name: true, username: true, accountNumber: true },
       }),
       prisma.dailyQuizResult.findMany({
         select: { userId: true, quizDate: true, passed: true },
@@ -67,7 +68,7 @@ export class StreakLeaderboardService {
       const map = byUser.get(u.id) ?? new Map<string, boolean>()
       return {
         userId: u.id,
-        displayName: u.name?.trim() || 'User',
+        displayName: publicAccountLabel(u),
         currentStreak: computeDisplayCurrentStreakFromMap(map, today),
       }
     })

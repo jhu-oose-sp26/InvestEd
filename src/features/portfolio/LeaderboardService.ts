@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { publicAccountLabel } from '@/lib/auth/userPublicHandle'
 import { getLiveQuotes } from '../market-data/finnhub/finnhubLiveQuoteService'
 import type { LeaderboardEntry } from '@/types'
 import { computeTotalPortfolioValue } from './portfolioValuation'
@@ -37,7 +38,7 @@ export class LeaderboardService {
 
     const portfolios = await prisma.portfolio.findMany({
       include: {
-        user: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, username: true, accountNumber: true } },
         positions: true,
       },
     })
@@ -76,7 +77,7 @@ export class LeaderboardService {
       portfolioId: pf.id,
       portfolioName: pf.name,
       userId: pf.userId,
-      displayName: pf.user.name?.trim() || 'User',
+      displayName: publicAccountLabel(pf.user),
       totalPortfolioValue: computeTotalPortfolioValue(
         pf.cashBalance.toNumber(),
         pf.positions,

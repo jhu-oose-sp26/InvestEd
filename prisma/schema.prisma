@@ -18,6 +18,10 @@ model User {
   /// Firebase Auth user id — set when the user first signs in via Firebase
   firebaseUid  String?   @unique
   name         String?
+  /// Optional public handle (unique). If unset, `accountNumber` is used for display/tracking.
+  username     String?   @unique
+  /// Stable unique id (e.g. IED-…) assigned at signup for support and leaderboards.
+  accountNumber String   @unique
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   

@@ -21,6 +21,16 @@ export function validatePasswordSignUp(raw: string): string | null {
   return null
 }
 
+/** Optional username: empty OK; otherwise 3–20 chars, lowercase letters, digits, underscore. */
+export function validateUsernameOptional(raw: string): string | null {
+  const s = raw.trim().toLowerCase()
+  if (!s) return null
+  if (s.length < 3) return 'Username must be at least 3 characters.'
+  if (s.length > 20) return 'Use at most 20 characters.'
+  if (!/^[a-z0-9_]+$/.test(s)) return 'Use only lowercase letters, numbers, and underscores.'
+  return null
+}
+
 /** Display name for registration / profile */
 export function validateDisplayName(raw: string): string | null {
   const s = raw.trim()

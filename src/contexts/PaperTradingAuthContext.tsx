@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -24,6 +25,8 @@ export type AppUser = {
   id: string
   email: string
   name: string | null
+  username: string | null
+  accountNumber: string
   firebaseUid: string | null
   /** ISO timestamp from Prisma `User.createdAt` */
   createdAt: string
@@ -50,7 +53,7 @@ type PaperTradingAuthState = {
   configError: string | null
   error: string | null
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, displayName?: string) => Promise<void>
+  signUp: (email: string, password: string, displayName?: string, username?: string) => Promise<void>
   signOut: () => Promise<void>
   clearError: () => void
   refreshQuizStreak: () => Promise<void>
@@ -58,17 +61,22 @@ type PaperTradingAuthState = {
 
 const PaperTradingAuthContext = createContext<PaperTradingAuthState | null>(null)
 
-async function syncServerSession(user: User): Promise<{
+async function syncServerSession(
+  user: User,
+  sessionExtras?: { username?: string } | null
+): Promise<{
   user: AppUser
   portfolioId: string
   quizStreak: QuizStreakInfo
 }> {
   const idToken = await user.getIdToken()
+  const body: { idToken: string; username?: string } = { idToken }
+  if (sessionExtras?.username) body.username = sessionExtras.username
   const sessionRes = await fetch('/api/auth/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify(body),
   })
   if (!sessionRes.ok) {
     const j = (await sessionRes.json().catch(() => ({}))) as { error?: string }
@@ -108,6 +116,7 @@ async function syncServerSession(user: User): Promise<{
 
 export function PaperTradingAuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
+  const sessionExtrasRef = useRef<{ username?: string } | null>(null)
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
   const [user, setUser] = useState<AppUser | null>(null)
   const [portfolioId, setPortfolioId] = useState<string | null>(null)
@@ -141,7 +150,12 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
       }
       setSessionSyncing(true)
       try {
-        const { user: appUser, portfolioId: pid, quizStreak: streak } = await syncServerSession(u)
+        const extras = sessionExtrasRef.current
+        sessionExtrasRef.current = null
+        const { user: appUser, portfolioId: pid, quizStreak: streak } = await syncServerSession(
+          u,
+          extras
+        )
         setUser(appUser)
         setPortfolioId(pid)
         setQuizStreak(streak)
@@ -162,12 +176,15 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
 
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null)
+    sessionExtrasRef.current = null
     const auth = getFirebaseAuth()
     await signInWithEmailAndPassword(auth, email.trim(), password)
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
+  const signUp = useCallback(async (email: string, password: string, displayName?: string, username?: string) => {
     setError(null)
+    const u = username?.trim().toLowerCase()
+    sessionExtrasRef.current = u ? { username: u } : null
     const auth = getFirebaseAuth()
     const cred = await createUserWithEmailAndPassword(auth, email.trim(), password)
     const trimmedName = displayName?.trim()
