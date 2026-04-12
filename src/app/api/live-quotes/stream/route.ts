@@ -56,7 +56,11 @@ export async function GET(request: NextRequest) {
       }, 20000)
 
       try {
-        const initial = await getLiveQuotes(order, apiKey)
+        let initial = await getLiveQuotes(order, apiKey)
+        if (initial.length === 0 && order.length > 0) {
+          await new Promise((r) => setTimeout(r, 600))
+          initial = await getLiveQuotes(order, apiKey)
+        }
         const last = new Map<string, FinnhubLiveQuote>()
         for (const q of initial) {
           last.set(q.symbol.toUpperCase(), q)

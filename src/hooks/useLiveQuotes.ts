@@ -3,6 +3,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
 
+/** Optional flags for `refetch` on the SSE-based hook (`useLiveQuotesStream`). Ignored by the polling hook. */
+export type LiveQuotesRefetchOptions = {
+  /** Reopen the shared EventSource so the server sends a fresh snapshot; use for explicit user refresh. */
+  reconnectSSE?: boolean
+}
+
 /** Shape returned by GET /api/live-quotes – use for graphs and multi-symbol UI. */
 export interface LiveQuoteItem {
   symbol: string
@@ -22,7 +28,7 @@ export interface LiveQuotesState {
   quotes: LiveQuoteItem[]
   loading: boolean
   error: string | null
-  refetch: () => void
+  refetch: (options?: LiveQuotesRefetchOptions) => void | Promise<void>
 }
 
 export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000): LiveQuotesState {
@@ -101,5 +107,9 @@ export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000):
     return () => clearInterval(id)
   }, [symbols.join(','), pollIntervalMs, fetchQuotes])
 
-  return { quotes, loading, error, refetch: fetchQuotes }
+  const refetchPublic = useCallback(() => {
+    void fetchQuotes()
+  }, [fetchQuotes])
+
+  return { quotes, loading, error, refetch: refetchPublic }
 }
