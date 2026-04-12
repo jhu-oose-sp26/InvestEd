@@ -32,6 +32,12 @@ export default function DashboardLayout({
                   Trade
                 </Link>
                 <Link
+                  href="/order-book"
+                  className="text-sm font-medium hover:text-primary transition-colors"
+                >
+                  Prediction Markets
+                </Link>
+                <Link
                   href="/portfolio"
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >
