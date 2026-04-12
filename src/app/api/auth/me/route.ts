@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/server'
 import { prisma } from '@/lib/prisma'
+import { getQuizStreakSummary } from '@/features/quiz/quizStreakService'
 
 export const runtime = 'nodejs'
 
@@ -11,11 +12,14 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) return auth.response
 
     const { user } = auth
-    const portfolios = await prisma.portfolio.findMany({
-      where: { userId: user.id },
-      select: { id: true, name: true, cashBalance: true },
-      orderBy: { createdAt: 'asc' },
-    })
+    const [portfolios, quizStreak] = await Promise.all([
+      prisma.portfolio.findMany({
+        where: { userId: user.id },
+        select: { id: true, name: true, cashBalance: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      getQuizStreakSummary(user.id),
+    ])
     return NextResponse.json({
       user: {
         id: user.id,
@@ -29,6 +33,10 @@ export async function GET(request: NextRequest) {
         name: p.name,
         cashBalance: p.cashBalance.toString(),
       })),
+      quizStreak: {
+        currentStreak: quizStreak.currentStreak,
+        longestStreak: quizStreak.longestStreak,
+      },
     })
   } catch (e) {
     console.error('GET /api/auth/me:', e)
