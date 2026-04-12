@@ -1,8 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
-import { PaperTradingSignInCard } from "@/components/auth/PaperTradingSignInCard"
+import {
+  DATA_UNAVAILABLE,
+  PORTFOLIO_ERRORS,
+  softenPublicErrorMessage,
+} from "@/lib/userFacingMessages"
 import {
   PieChart,
   Pie,
@@ -22,15 +25,21 @@ interface PortfolioHistoryPoint {
   value: number
 }
 
+interface MarketPosition {
+  id: string
+  yesQuantity: number
+  noQuantity: number
+  market: { title: string; status: string; outcome: boolean | null }
+}
+
 interface PortfolioSummary {
-  portfolioId: string
-  portfolioName: string
   totalCash: number
   totalInvested: number
   totalCurrentValue: number
   totalPortfolioValue: number
   totalUnrealizedPnL: number
   totalUnrealizedPnLPercent: number
+  predictionPositionsValue: number
   positions: Array<{
     symbol: string
     quantity: number
@@ -45,121 +54,73 @@ interface PortfolioSummary {
 }
 
 export default function PortfolioPage() {
-  const {
-    ready,
-    sessionSyncing,
-    portfolioId,
-    firebaseUser,
-    configError,
-    error: authError,
-    signOut,
-  } = usePaperTradingAuth()
-
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null)
   const [history, setHistory] = useState<PortfolioHistoryPoint[] | null>(null)
+  const [marketPositions, setMarketPositions] = useState<MarketPosition[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!ready || !portfolioId) {
-      setLoading(false)
-      setPortfolio(null)
-      setHistory(null)
-      setError(null)
-      return
-    }
-
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-
     const load = async () => {
       try {
-        const enc = encodeURIComponent(portfolioId)
-        const [portfolioRes, historyRes] = await Promise.all([
-          fetch(`/api/portfolios/${enc}`, { credentials: "include" }),
-          fetch(`/api/portfolios/${enc}/history`, { credentials: "include" }),
+        const [portfolioRes, historyRes, marketPosRes] = await Promise.all([
+          fetch("/api/portfolio", { credentials: "include" }),
+          fetch("/api/portfolio/history", { credentials: "include" }),
+          fetch("/api/market-positions", { credentials: "include" }),
         ])
-        if (!portfolioRes.ok) throw new Error("Failed to fetch portfolio")
-        if (!historyRes.ok) throw new Error("Failed to fetch portfolio history")
-        const [portfolioData, historyData] = await Promise.all([
-          portfolioRes.json(),
-          historyRes.json(),
+        const [portfolioData, historyData, marketPosData] = await Promise.all([
+          portfolioRes.json().catch(() => ({})),
+          historyRes.json().catch(() => ({})),
+          marketPosRes.json().catch(() => ({})),
         ])
-        if (!cancelled) {
-          setPortfolio(portfolioData)
-          setHistory(historyData.points as PortfolioHistoryPoint[])
+        if (!portfolioRes.ok) {
+          const msg =
+            typeof portfolioData?.error === "string"
+              ? softenPublicErrorMessage(portfolioData.error)
+              : DATA_UNAVAILABLE.portfolioMissing
+          throw new Error(msg)
         }
+        if (!historyRes.ok) {
+          const msg =
+            typeof historyData?.error === "string"
+              ? softenPublicErrorMessage(historyData.error)
+              : PORTFOLIO_ERRORS.historyLoadFailed
+          throw new Error(msg)
+        }
+        setPortfolio(portfolioData)
+        setHistory((historyData.points as PortfolioHistoryPoint[]) ?? [])
+        setMarketPositions(marketPosRes.ok ? (marketPosData.positions ?? []) : [])
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "An error occurred")
-        }
+        setError(err instanceof Error ? err.message : PORTFOLIO_ERRORS.loadFailed)
       } finally {
-        if (!cancelled) setLoading(false)
+        setLoading(false)
       }
     }
-    void load()
-    return () => {
-      cancelled = true
-    }
-  }, [ready, portfolioId])
-
-  if (!ready) {
-    return <div className="text-center py-8 text-muted-foreground">Loading…</div>
-  }
-
-  if (configError) {
-    return (
-      <div className="max-w-6xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">Portfolio</h1>
-        <PaperTradingSignInCard />
-      </div>
-    )
-  }
-
-  if (!firebaseUser) {
-    return (
-      <div className="max-w-6xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">Portfolio</h1>
-        <p className="text-muted-foreground text-sm">
-          Sign in to view your paper-trading portfolio.
-        </p>
-        <PaperTradingSignInCard />
-      </div>
-    )
-  }
-
-  if (sessionSyncing || !portfolioId) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        {authError ? (
-          <div className="space-y-4">
-            <p className="text-red-600">{authError}</p>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="text-sm underline"
-            >
-              Sign out and try again
-            </button>
-          </div>
-        ) : (
-          <>Setting up your session and portfolio…</>
-        )}
-      </div>
-    )
-  }
+    load()
+  }, [])
 
   if (loading) {
-    return <div className="text-center py-8">Loading portfolio...</div>
+    return (
+      <div className="text-center py-8 text-muted-foreground animate-pulse">
+        Loading your portfolio…
+      </div>
+    )
   }
 
   if (error) {
-    return <div className="text-center py-8 text-red-600">Error: {error}</div>
+    return (
+      <div className="max-w-lg mx-auto text-center py-10 px-4 rounded-lg border bg-card">
+        <p className="text-sm font-medium text-foreground leading-relaxed">{error}</p>
+      </div>
+    )
   }
 
   if (!portfolio) {
-    return <div className="text-center py-8">No portfolio data available</div>
+    return (
+      <div className="max-w-lg mx-auto text-center py-10 px-4 text-muted-foreground leading-relaxed">
+        {DATA_UNAVAILABLE.portfolioMissing}
+      </div>
+    )
   }
 
   const formatCurrency = (value: number) => {
@@ -199,7 +160,7 @@ export default function PortfolioPage() {
       <h1 className="text-3xl font-bold mb-8">Portfolio</h1>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div className="p-6 border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Cash Balance</div>
           <div className="text-2xl font-bold">{formatCurrency(portfolio.totalCash)}</div>
@@ -215,12 +176,16 @@ export default function PortfolioPage() {
         <div className="p-6 border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Unrealized P&L</div>
           <div
-            className={`text-2xl font-bold ${
-              portfolio.totalUnrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
-            }`}
+            className={`text-2xl font-bold ${portfolio.totalUnrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
+              }`}
           >
             {formatCurrency(portfolio.totalUnrealizedPnL)} ({formatPercent(portfolio.totalUnrealizedPnLPercent)})
           </div>
+        </div>
+        <div className="p-6 border rounded-lg">
+          <div className="text-sm text-muted-foreground mb-1">Predictions (est.)</div>
+          <div className="text-2xl font-bold">{formatCurrency(portfolio.predictionPositionsValue)}</div>
+          <div className="text-xs text-muted-foreground mt-1">Valued at last traded price, open markets</div>
         </div>
       </div>
 
@@ -268,16 +233,18 @@ export default function PortfolioPage() {
                 tick={{ fontSize: 12 }}
               />
               <Tooltip
-                formatter={(value: any) => formatCurrency(Number(value) || 0)}
+                formatter={(value) =>
+                  formatCurrency(typeof value === "number" ? value : Number(value) || 0)
+                }
                 labelFormatter={(label) =>
                   typeof label === "number"
                     ? new Date(label).toLocaleString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : String(label)
                 }
                 contentStyle={{ borderRadius: "8px" }}
@@ -295,8 +262,10 @@ export default function PortfolioPage() {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            No history to display
+          <div className="h-64 flex items-center justify-center px-4">
+            <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+              {DATA_UNAVAILABLE.portfolioHistory}
+            </p>
           </div>
         )}
       </div>
@@ -305,8 +274,10 @@ export default function PortfolioPage() {
       <div className="border rounded-lg p-4 mb-8">
         <h2 className="text-xl font-semibold mb-4">Allocation</h2>
         {pieData.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            No allocation data yet
+          <div className="h-64 flex items-center justify-center px-4">
+            <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+              {DATA_UNAVAILABLE.portfolioAllocation}
+            </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
@@ -326,7 +297,9 @@ export default function PortfolioPage() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: any) => formatCurrency(Number(value) || 0)}
+                formatter={(value) =>
+                  formatCurrency(typeof value === "number" ? value : Number(value) || 0)
+                }
                 contentStyle={{ borderRadius: "8px" }}
               />
               <Legend />
@@ -342,10 +315,12 @@ export default function PortfolioPage() {
           Breakdown of your current investments by sector.
         </p>
         {sectorPieData.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-muted-foreground">
-            {portfolio.positions.length === 0
-              ? 'No positions yet'
-              : 'Sector data unavailable. Set FINNHUB_API_KEY in .env to see sector breakdown.'}
+          <div className="h-64 flex items-center justify-center px-4">
+            <p className="text-sm text-muted-foreground text-center max-w-md leading-relaxed">
+              {portfolio.positions.length === 0
+                ? DATA_UNAVAILABLE.portfolioPositions
+                : DATA_UNAVAILABLE.portfolioSector}
+            </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
@@ -365,7 +340,9 @@ export default function PortfolioPage() {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: any) => formatCurrency(Number(value) || 0)}
+                formatter={(value) =>
+                  formatCurrency(typeof value === "number" ? value : Number(value) || 0)
+                }
                 contentStyle={{ borderRadius: '8px' }}
               />
               <Legend />
@@ -374,11 +351,64 @@ export default function PortfolioPage() {
         )}
       </div>
 
-      {/* Positions Table */}
+      {/* Prediction Market Positions */}
+      {marketPositions.length > 0 && (
+        <div className="border rounded-lg overflow-hidden mb-8">
+          <h2 className="text-xl font-semibold p-4 border-b">Prediction Markets</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Market</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">YES Shares</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">NO Shares</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">Payout</th>
+                </tr>
+              </thead>
+              <tbody>
+                {marketPositions.map(pos => {
+                  const resolved = pos.market.status === 'RESOLVED'
+                  const payout = resolved
+                    ? pos.market.outcome
+                      ? formatCurrency(pos.yesQuantity)
+                      : formatCurrency(pos.noQuantity)
+                    : '—'
+                  return (
+                    <tr key={pos.id} className="border-t">
+                      <td className="px-4 py-3 font-medium">{pos.market.title}</td>
+                      <td className="px-4 py-3">
+                        <span className={pos.yesQuantity > 0 ? 'text-emerald-600 font-semibold' : 'text-muted-foreground'}>
+                          {pos.yesQuantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={pos.noQuantity > 0 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
+                          {pos.noQuantity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${pos.market.status === 'OPEN' ? 'bg-emerald-100 text-emerald-700' : pos.market.status === 'RESOLVED' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {pos.market.status}{pos.market.outcome != null && ` — ${pos.market.outcome ? 'YES' : 'NO'}`}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-emerald-600">{payout}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Stock Positions Table */}
       <div className="border rounded-lg overflow-hidden">
         <h2 className="text-xl font-semibold p-4 border-b">Positions</h2>
         {portfolio.positions.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">No positions yet</div>
+          <div className="p-8 text-center text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+            {DATA_UNAVAILABLE.portfolioPositions}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -403,9 +433,8 @@ export default function PortfolioPage() {
                     <td className="px-4 py-3">{formatCurrency(position.totalCost)}</td>
                     <td className="px-4 py-3">{formatCurrency(position.currentValue)}</td>
                     <td
-                      className={`px-4 py-3 font-medium ${
-                        position.unrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
+                      className={`px-4 py-3 font-medium ${position.unrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
                     >
                       {formatCurrency(position.unrealizedPnL)} ({formatPercent(position.unrealizedPnLPercent)})
                     </td>

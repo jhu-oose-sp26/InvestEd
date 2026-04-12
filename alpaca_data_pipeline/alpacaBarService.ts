@@ -13,6 +13,8 @@
 
 import { prisma } from '@/lib/prisma'
 import { Decimal } from '@prisma/client/runtime/library'
+
+type TimestampRow = { timestamp: Date }
 import { fetchBarsFromAlpaca, type AlpacaBar } from './alpacaBarsApi'
 
 // ---------------------------------------------------------------------------
@@ -65,7 +67,7 @@ async function getExistingTimestamps(
         },
         select: { timestamp: true },
     })
-    return new Set(rows.map((r) => r.timestamp.toISOString()))
+    return new Set(rows.map((r: TimestampRow) => r.timestamp.toISOString()))
 }
 
 // ---------------------------------------------------------------------------

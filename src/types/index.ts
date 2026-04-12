@@ -16,3 +16,4 @@ export type {
   QuizCompleteResponse,
   StreakLeaderboardEntry,
 } from './quiz'
+export type { PlaceLimitOrderInput, LimitOrderResult, OrderBookEntry, OrderBookSnapshot, CreateMarketInput, MarketResult } from './limit-order'

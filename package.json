@@ -12,6 +12,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
     "candles:sync": "tsx candle_supabase_pipeline/cli/sync.ts",
     "candles:backfill": "tsx candle_supabase_pipeline/cli/backfill.ts"
   },
@@ -43,7 +44,7 @@
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.0",
     "dotenv": "^16.4.7",
-    "eslint": "^10.0.1",
+    "eslint": "^9.21.0",
     "eslint-config-next": "^16.1.6",
     "postcss": "^8.4.0",
     "prisma": "^5.19.0",

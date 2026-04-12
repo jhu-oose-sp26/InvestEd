@@ -34,9 +34,14 @@ export async function POST(request: NextRequest) {
     getFirebaseAdminApp()
     const auth = getAuth()
     const decoded = await auth.verifyIdToken(idToken)
+    let nameForDb = decoded.name
+    if (!nameForDb?.trim()) {
+      const record = await auth.getUser(decoded.uid)
+      nameForDb = record.displayName ?? undefined
+    }
     let user
     try {
-      user = await getOrCreateUserFromFirebase(decoded.uid, decoded.email)
+      user = await getOrCreateUserFromFirebase(decoded.uid, decoded.email, nameForDb)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       if (msg === 'EMAIL_CONFLICT' || msg === 'ACCOUNT_CONFLICT') {
