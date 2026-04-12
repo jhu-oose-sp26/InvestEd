@@ -57,6 +57,8 @@
 ## About The Project
 A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
+## Live Demo: [InvestEd](https://invested-ivory.vercel.app/)
+
 ## Tech Stack
 
 - **Frontend**: Next.js (App Router) with TypeScript, Tailwind CSS, and Shadcn UI
@@ -152,7 +154,8 @@ docker compose logs -f db
 
 ```bash
 psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_DB>" \
-  -c "INSERT INTO users (id,email,name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+  -c "INSERT INTO users (id,email,name,\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',NOW(),NOW()) ON CONFLICT (id) DO NOTHING; \
+      INSERT INTO portfolios (id,\"userId\",name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-portfolio-id','temp-user-id','My Portfolio',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
 ```
 
 7. Run the development server:
@@ -296,11 +299,11 @@ The server keeps one WebSocket to Finnhub and an in-memory trade cache. Previous
 <!-- CONTACT -->
 ## Contact
 
-- Mischa Kumar - [mkumar40@jh.edu](mailto:your_email@example.com)
-- Vicki Chen - [vchen30@jh.edu](mailto:your_email@example.com)
-- Misha Zhernevskii - [mzhernevskii@gmail.com](mailto:mzhernevskii@gmail.com)
-- Hanliang Xu - [hxu110@jh.edu](mailto:your_email@example.com)
-- Vrinda Sehgal - [vsehgal2@jh.edu](mailto:your_email@example.com)
+- Mischa Kumar - [mkumar40@jh.edu](mailto:mkumar40@jh.edu)
+- Vicki Chen - [vchen30@jh.edu](mailto:vchen30@jh.edu)
+- Misha Zhernevskii - [mzherne1@jh.edu](mailto:mzherne1@jh.edu)
+- Hanliang Xu - [hxu110@jh.edu](mailto:hxu110@jh.edu)
+- Vrinda Sehgal - [vsehgal2@jh.edu](mailto:vsehgal2@jh.edu)
 
 Project Link: [InvestEd](https://github.com/jhu-oose-sp26/InvestEd)
 

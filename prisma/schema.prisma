@@ -28,6 +28,9 @@ model User {
   portfolios        Portfolio[]
   customQuizzes     CustomQuiz[]
   dailyQuizResults  DailyQuizResult[]
+  markets           Market[]
+  marketPositions   MarketPosition[]
+  limitOrders       LimitOrder[]
 
   @@map("users")
 }
@@ -168,7 +171,86 @@ model CustomQuizQuestion {
   @@map("custom_quiz_questions")
 }
 
+model Market {
+  id             String         @id @default(cuid())
+  creatorId      String
+  title          String         @db.VarChar(200)
+  description    String?        @db.VarChar(2000)
+  resolutionDate DateTime
+  status         MarketStatus   @default(OPEN)
+  outcome        Boolean?       // true = YES, false = NO, null = unresolved
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  creator        User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  positions      MarketPosition[]
+  limitOrders    LimitOrder[]
+
+  @@index([creatorId])
+  @@index([status])
+  @@map("markets")
+}
+
+model MarketPosition {
+  id          String   @id @default(cuid())
+  userId      String
+  marketId    String
+  yesQuantity Int      @default(0)
+  noQuantity  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market      Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, marketId])
+  @@index([marketId])
+  @@map("market_positions")
+}
+
+model LimitOrder {
+  id         String      @id @default(cuid())
+  userId     String
+  marketId   String
+  side       OrderSide   // YES or NO
+  orderType  OrderType   @default(LIMIT)
+  limitPrice Decimal     @db.Decimal(15, 4) // 0.01–1.00
+  quantity   Int
+  status     OrderStatus @default(OPEN)
+  createdAt  DateTime    @default(now())
+  filledAt   DateTime?
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market     Market      @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([marketId, status])
+  @@map("limit_orders")
+}
+
 enum TradeType {
   BUY
   SELL
+}
+
+enum OrderSide {
+  YES
+  NO
+}
+
+enum OrderType {
+  LIMIT
+  IOC
+}
+
+enum MarketStatus {
+  OPEN
+  RESOLVED
+  CANCELLED
+}
+
+enum OrderStatus {
+  OPEN
+  FILLED
+  CANCELLED
+  EXPIRED
 }

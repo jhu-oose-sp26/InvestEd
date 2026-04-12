@@ -13,6 +13,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
     "candles:sync": "tsx candle_supabase_pipeline/cli/sync.ts",
     "candles:backfill": "tsx candle_supabase_pipeline/cli/backfill.ts"
   },
