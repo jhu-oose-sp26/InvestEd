@@ -37,7 +37,7 @@ market_data_pipeline/.env.s3
 next-env.d.ts
 
 # prisma
-/prisma/migrations
+# /prisma/migrations
 
 .venv
 
