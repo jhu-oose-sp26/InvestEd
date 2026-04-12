@@ -2,14 +2,33 @@ import { NextRequest, NextResponse } from 'next/server'
 import { portfolioService } from '@/features/portfolio/PortfolioService'
 import { fetchFinnhubCompanyProfile } from '@/features/market-data/finnhub'
 import { httpErrorResponse } from '@/lib/api/httpErrors'
+import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth/server'
 
+export const runtime = 'nodejs'
+
+/** GET /api/portfolio — summary for the signed-in user’s first portfolio (same shape as /api/portfolios/[id]). */
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Get userId from authentication session
-    // For now, using a placeholder userId - replace with actual auth
-    const userId = 'temp-user-id' // Replace with actual user ID from session
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
 
-    const summary = await portfolioService.getPortfolioSummary(userId)
+    const portfolio = await prisma.portfolio.findFirst({
+      where: { userId: auth.user.id },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    })
+    if (!portfolio) {
+      return NextResponse.json(
+        {
+          error:
+            'No portfolio found for this account yet. Sign out and sign in again, or contact support if this continues.',
+        },
+        { status: 404 }
+      )
+    }
+
+    const summary = await portfolioService.getPortfolioSummary(portfolio.id)
 
     const apiKey = process.env.FINNHUB_API_KEY
     if (apiKey?.trim() && summary.positions.length > 0) {
@@ -33,4 +52,3 @@ export async function GET(request: NextRequest) {
     return httpErrorResponse('IE_PFO_001', 500)
   }
 }
-

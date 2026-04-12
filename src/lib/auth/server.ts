@@ -66,9 +66,11 @@ async function ensureEmail(uid: string, emailFromToken: string | undefined): Pro
  */
 export async function getOrCreateUserFromFirebase(
   uid: string,
-  email: string | undefined
+  email: string | undefined,
+  nameFromToken?: string | null
 ): Promise<User> {
   const emailNorm = await ensureEmail(uid, email)
+  const nameNorm = nameFromToken?.trim() || null
 
   const byUid = await prisma.user.findUnique({ where: { firebaseUid: uid } })
   if (byUid) {
@@ -79,7 +81,16 @@ export async function getOrCreateUserFromFirebase(
       }
       return prisma.user.update({
         where: { id: byUid.id },
-        data: { email: emailNorm },
+        data: {
+          email: emailNorm,
+          ...(nameNorm && !byUid.name ? { name: nameNorm } : {}),
+        },
+      })
+    }
+    if (nameNorm && !byUid.name) {
+      return prisma.user.update({
+        where: { id: byUid.id },
+        data: { name: nameNorm },
       })
     }
     return byUid
@@ -92,7 +103,10 @@ export async function getOrCreateUserFromFirebase(
     }
     return prisma.user.update({
       where: { id: byEmail.id },
-      data: { firebaseUid: uid },
+      data: {
+        firebaseUid: uid,
+        ...(nameNorm && !byEmail.name ? { name: nameNorm } : {}),
+      },
     })
   }
 
@@ -100,6 +114,7 @@ export async function getOrCreateUserFromFirebase(
     data: {
       firebaseUid: uid,
       email: emailNorm,
+      name: nameNorm,
     },
   })
 }
@@ -119,7 +134,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthSuccess | A
         ),
       }
     }
-    const user = await getOrCreateUserFromFirebase(decoded.uid, decoded.email)
+    const user = await getOrCreateUserFromFirebase(decoded.uid, decoded.email, decoded.name)
     return { ok: true, user }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
