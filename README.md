@@ -176,6 +176,8 @@ InvestEd/
 
     You can run the same SQL in your host’s SQL editor instead of `db execute`, or use `prisma migrate deploy` when your database’s migration history supports it. For `db:push` and other Prisma workflows, see **Development** below.
 
+    P3005 on migrate deploy: Baseline by marking migrations that already match your DB as applied (prisma migrate resolve --applied <folder>), then migrate deploy; see Prisma’s baseline production DB docs.
+
 6. Seed the placeholder API user (current routes use `temp-user-id`):
 
 ```bash
