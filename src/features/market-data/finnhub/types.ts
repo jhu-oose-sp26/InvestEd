@@ -76,3 +76,18 @@ export interface FinnhubCompanyProfile {
   symbol: string
   sector: string
 }
+
+// --- Company news (GET /company-news) — North American listings only on free tier ---
+export interface FinnhubCompanyNewsItem {
+  category?: string
+  /** Published time, UNIX seconds */
+  datetime: number
+  headline: string
+  id: number
+  image?: string
+  /** Related tickers (comma-separated in API) */
+  related?: string
+  source?: string
+  summary?: string
+  url: string
+}

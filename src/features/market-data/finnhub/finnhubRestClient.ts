@@ -10,6 +10,7 @@ import type {
   FinnhubQuoteSnapshot,
   FinnhubCompanyProfile2Response,
   FinnhubCompanyProfile,
+  FinnhubCompanyNewsItem,
 } from './types'
 
 const FINNHUB_BASE = 'https://finnhub.io/api/v1'
@@ -95,4 +96,39 @@ export async function fetchFinnhubCompanyProfile(
   const data = (await res.json()) as FinnhubCompanyProfile2Response
   const sector = data?.sector ?? data?.finnhubIndustry ?? 'Unknown'
   return { symbol: symbol.toUpperCase(), sector }
+}
+
+const COMPANY_NEWS_BASE = `${FINNHUB_BASE}/company-news`
+
+/**
+ * Latest company news for a symbol (Finnhub: North American companies on typical tiers).
+ * Returns an empty array on HTTP errors so one bad ticker does not fail a batch.
+ */
+export async function fetchFinnhubCompanyNews(
+  symbol: string,
+  apiKey: string,
+  fromYmd: string,
+  toYmd: string
+): Promise<FinnhubCompanyNewsItem[]> {
+  if (!apiKey.trim()) return []
+  const url = new URL(COMPANY_NEWS_BASE)
+  url.searchParams.set('symbol', symbol.toUpperCase())
+  url.searchParams.set('from', fromYmd)
+  url.searchParams.set('to', toYmd)
+  url.searchParams.set('token', apiKey)
+
+  const res = await fetch(url.toString(), { method: 'GET', headers: { 'Cache-Control': 'no-store' } })
+  if (!res.ok) return []
+  const data: unknown = await res.json()
+  if (!Array.isArray(data)) return []
+  return data.filter((row): row is FinnhubCompanyNewsItem => {
+    if (!row || typeof row !== 'object') return false
+    const o = row as Record<string, unknown>
+    return (
+      typeof o.id === 'number' &&
+      typeof o.headline === 'string' &&
+      typeof o.url === 'string' &&
+      typeof o.datetime === 'number'
+    )
+  })
 }
