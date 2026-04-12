@@ -6,7 +6,6 @@ import {
   getPasswordFieldState,
   validateEmailValue,
   validatePasswordSignIn,
-  validatePasswordSignUp,
 } from '@/lib/auth/emailPasswordValidation'
 import { friendlyFirebaseAuthMessage } from '@/lib/auth/firebaseAuthMessages'
 import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
@@ -16,14 +15,14 @@ import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
  * calls POST /api/auth/session, GET /api/auth/me, and POST /api/portfolios if needed.
  */
 export function PaperTradingSignInCard() {
-  const { signIn, signUp, error, clearError, configError } = usePaperTradingAuth()
+  const { signIn, error, clearError, configError } = usePaperTradingAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [emailTouched, setEmailTouched] = useState(false)
   const [passwordTouched, setPasswordTouched] = useState(false)
-  const [attemptedAction, setAttemptedAction] = useState<'signIn' | 'signUp' | null>(null)
+  const [attemptedAction, setAttemptedAction] = useState<'signIn' | null>(null)
 
   const showEmailMessages = emailTouched || attemptedAction !== null
   const showPasswordMessages = passwordTouched || attemptedAction !== null
@@ -35,10 +34,10 @@ export function PaperTradingSignInCard() {
 
   const disabled = submitting || !email.trim() || !password
 
-  const runValidation = (mode: 'signIn' | 'signUp'): boolean => {
+  const runValidation = (): boolean => {
     const eErr = validateEmailValue(email)
-    const pErr = mode === 'signUp' ? validatePasswordSignUp(password) : validatePasswordSignIn(password)
-    setAttemptedAction(mode)
+    const pErr = validatePasswordSignIn(password)
+    setAttemptedAction('signIn')
     setEmailTouched(true)
     setPasswordTouched(true)
     return !eErr && !pErr
@@ -47,28 +46,11 @@ export function PaperTradingSignInCard() {
   const handleSignIn = async () => {
     clearError()
     setFormError(null)
-    if (!runValidation('signIn')) return
+    if (!runValidation()) return
 
     setSubmitting(true)
     try {
       await signIn(email, password)
-      setAttemptedAction(null)
-    } catch (e) {
-      setAttemptedAction(null)
-      setFormError(friendlyFirebaseAuthMessage(e))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleSignUp = async () => {
-    clearError()
-    setFormError(null)
-    if (!runValidation('signUp')) return
-
-    setSubmitting(true)
-    try {
-      await signUp(email, password)
       setAttemptedAction(null)
     } catch (e) {
       setAttemptedAction(null)
@@ -91,7 +73,7 @@ export function PaperTradingSignInCard() {
   return (
     <div className="max-w-md mx-auto rounded-xl border bg-card p-6 space-y-5 shadow-sm">
       <p className="text-sm text-center text-muted-foreground">
-        Log in with your email and password, or create an account.
+        Sign in with your email and password.
       </p>
       <div className="space-y-3">
         <div>
@@ -159,7 +141,7 @@ export function PaperTradingSignInCard() {
             >
               {passwordState.error ??
                 passwordState.tip ??
-                (passwordState.ok ? 'Meets the minimum length for a new account.' : '\u00a0')}
+                (passwordState.ok ? 'Meets minimum length.' : '\u00a0')}
             </p>
           )}
         </div>
@@ -169,24 +151,14 @@ export function PaperTradingSignInCard() {
           {formError || contextMessage}
         </div>
       )}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <button
-          type="button"
-          onClick={handleSignIn}
-          disabled={disabled}
-          className="flex-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-        >
-          {submitting ? '…' : 'Sign in'}
-        </button>
-        <button
-          type="button"
-          onClick={handleSignUp}
-          disabled={disabled}
-          className="flex-1 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
-        >
-          Create account
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => void handleSignIn()}
+        disabled={disabled}
+        className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+      >
+        {submitting ? '…' : 'Sign in'}
+      </button>
     </div>
   )
 }

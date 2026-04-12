@@ -21,6 +21,21 @@ export function validatePasswordSignUp(raw: string): string | null {
   return null
 }
 
+/** Display name for registration / profile */
+export function validateDisplayName(raw: string): string | null {
+  const s = raw.trim()
+  if (!s) return 'Enter your name.'
+  if (s.length > 80) return 'Use a shorter name (80 characters max).'
+  return null
+}
+
+/** Confirm password must match primary password */
+export function validatePasswordConfirm(password: string, confirm: string): string | null {
+  if (!confirm) return 'Re-enter your password to confirm.'
+  if (password !== confirm) return 'Passwords do not match. Try again.'
+  return null
+}
+
 export type PasswordFieldState = {
   error: string | null
   /** Non-blocking hint when the password is too short for account creation */
@@ -49,7 +64,7 @@ export function getPasswordFieldState(
   if (password.length < 6) {
     return {
       error: null,
-      tip: 'Use at least 6 characters if you’re creating a new account.',
+      tip: 'Have at least 6 characters.',
       ok: false,
     }
   }

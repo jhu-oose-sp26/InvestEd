@@ -39,9 +39,11 @@ function LastUpdatedCell({ q, nowMs }: { q: LiveQuoteItem; nowMs: number }) {
       <div className="text-foreground">{clock}</div>
       <div className="text-xs text-muted-foreground">{age}</div>
       <div className="text-[10px] text-muted-foreground/80 tabular-nums">Price time: {providerClock}</div>
-      <div className="text-[10px] mt-0.5 font-medium text-muted-foreground/90 tracking-wide">
-        {fromStream ? "Live trades" : "Price check"}
-      </div>
+      {fromStream ? (
+        <div className="text-[10px] mt-0.5 font-medium text-muted-foreground/90 tracking-wide">
+          Live trades
+        </div>
+      ) : null}
     </div>
   )
 }

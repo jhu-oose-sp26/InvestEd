@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         email: user.email,
         name: user.name,
         firebaseUid: user.firebaseUid,
+        createdAt: user.createdAt.toISOString(),
       },
       portfolios: portfolios.map((p) => ({
         id: p.id,
