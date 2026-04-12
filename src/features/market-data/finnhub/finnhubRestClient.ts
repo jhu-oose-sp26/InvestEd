@@ -15,8 +15,8 @@ import { recordPreviousClose } from './referenceCloseCache'
 
 const FINNHUB_BASE = 'https://finnhub.io/api/v1'
 
-/** Small parallel cap: faster multi-symbol cold load than strict serial, still gentle on Finnhub limits. */
-const QUOTE_FETCH_CONCURRENCY = 2
+/** Parallel cap for GET /quote. Watchlist has 25 symbols*/
+const QUOTE_FETCH_CONCURRENCY = 5
 let activeQuoteFetches = 0
 const quoteSlotWaiters: Array<() => void> = []
 

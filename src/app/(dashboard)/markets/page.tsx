@@ -48,6 +48,7 @@ function LastUpdatedCell({ q, nowMs }: { q: LiveQuoteItem; nowMs: number }) {
 
 export default function MarketsPage() {
   const symbols = [...DEFAULT_LIVE_MARKETS_SYMBOLS]
+  const upperSymbols = symbols.map((s) => s.trim().toUpperCase())
   const { quotes, loading, error, refetch } = useLiveQuotesStream(symbols)
 
   const [nowMs, setNowMs] = useState(() => Date.now())
@@ -69,7 +70,7 @@ export default function MarketsPage() {
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => void refetch()}
+          onClick={() => void refetch({ reconnectSSE: true })}
           className="shrink-0 self-start gap-2 rounded-lg shadow-sm sm:mt-1"
         >
           <RefreshCw className="h-4 w-4 shrink-0" aria-hidden />
@@ -96,7 +97,7 @@ export default function MarketsPage() {
             </tr>
           </thead>
           <tbody>
-            {symbols.map((sym) => {
+            {upperSymbols.map((sym) => {
               const q = quotes.find((x) => x.symbol === sym)
               const rowLoading = loading && !q
               return (

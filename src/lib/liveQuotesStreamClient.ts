@@ -52,14 +52,12 @@ function openStream(key: string) {
   }
 
   es.onerror = () => {
-    const failedKey = activeKey
-    es.close()
-    if (eventSource === es) {
-      eventSource = null
-      activeKey = ""
-      if (failedKey) lastQuotesByStreamKey.delete(failedKey)
+    // Browsers fire this on transient drops (proxy buffering, dev HMR, tab sleep). Closing here
+    // prevented native reconnect and we broadcast a hard error while REST was still loading—
+    // users saw “not available” for 10s+ incorrectly. Let the EventSource retry; REST refetch still fills UI.
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[live-quotes] EventSource error (will retry if browser allows), readyState=", es.readyState)
     }
-    broadcastError("Live prices stopped updating. Please refresh the page.")
   }
 }
 
@@ -87,11 +85,11 @@ export function attachLiveQuotesStream(key: string, handler: StreamHandler): () 
     openStream(key)
   }
 
+  // Deliver immediately so React can batch with the hook’s own updates in the same effect;
+  // queueMicrotask deferred one frame and kept rows/strip empty until the next paint.
   const cached = lastQuotesByStreamKey.get(key)
   if (cached && cached.length > 0) {
-    queueMicrotask(() => {
-      if (handlers.has(handler)) handler.onData(cached)
-    })
+    handler.onData(cached)
   }
 
   return () => {
@@ -109,4 +107,13 @@ export function attachLiveQuotesStream(key: string, handler: StreamHandler): () 
 
 export function liveQuotesStreamCacheKey(symbols: readonly string[]): string {
   return [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].sort().join(",")
+}
+
+/**
+ * Close and reopen the shared SSE for this key so the server runs a fresh `getLiveQuotes` snapshot.
+ * All current subscribers keep receiving events. No-op if nothing is connected for `key`.
+ */
+export function reconnectSharedLiveQuotesStream(key: string): void {
+  if (!key || activeKey !== key || !eventSource) return
+  openStream(key)
 }

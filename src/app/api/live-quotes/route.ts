@@ -24,7 +24,11 @@ export async function GET(request: NextRequest) {
     if (!apiKey?.trim()) {
       return httpErrorResponse('IE_CFG_001', 503)
     }
-    const quotes = await getLiveQuotes(symbols, apiKey)
+    let quotes = await getLiveQuotes(symbols, apiKey)
+    if (quotes.length === 0 && symbols.length > 0) {
+      await new Promise((r) => setTimeout(r, 600))
+      quotes = await getLiveQuotes(symbols, apiKey)
+    }
     return NextResponse.json(quotes)
   } catch (error) {
     console.error('Live quotes API error:', error)
