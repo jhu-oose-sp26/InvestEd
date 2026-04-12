@@ -311,8 +311,11 @@ export default function AccountPage() {
             <p className="text-sm text-destructive leading-relaxed">{portfolioErr}</p>
           ) : portfolio ? (
             <div className="overflow-hidden rounded-xl border border-border/50 bg-muted/40">
-              <StatBlock label="Portfolio" value={portfolio.portfolioName} />
-              <StatBlock label="Total value" value={formatUsd(portfolio.totalPortfolioValue)} emphasis />
+              <StatBlock label="Portfolio value" value={formatUsd(portfolio.totalPortfolioValue)} emphasis />
+              <StatBlock
+                label="Total invested"
+                value={<span className="tabular-nums">{formatUsd(portfolio.totalInvested)}</span>}
+              />
               <StatBlock
                 label="Cash"
                 value={<span className="tabular-nums">{formatUsd(portfolio.totalCash)}</span>}
