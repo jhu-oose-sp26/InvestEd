@@ -30,3 +30,11 @@ export interface QuizCompleteResponse {
   streak: number
   longestStreak: number
 }
+
+/** GET /api/leaderboard/streaks — global ranking by display current streak */
+export interface StreakLeaderboardEntry {
+  rank: number
+  userId: string
+  displayName: string
+  currentStreak: number
+}
