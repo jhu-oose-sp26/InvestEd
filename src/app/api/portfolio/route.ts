@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { portfolioService } from '@/features/portfolio/PortfolioService'
-import { fetchFinnhubCompanyProfile } from '@finnhub-data-pipeline'
+import { fetchFinnhubCompanyProfile } from '@/features/market-data/finnhub'
 import { httpErrorResponse } from '@/lib/api/httpErrors'
 
 export async function GET(request: NextRequest) {
