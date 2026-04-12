@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   getReportMatchup,
   getReportMatchupErrorStatus,
+  ReportMatchupError,
 } from '@/features/report-matchup/reportMatchupDataset'
+import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,9 +16,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(matchup)
   } catch (error) {
     console.error('Report matchup API error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: getReportMatchupErrorStatus(error) }
-    )
+    if (error instanceof ReportMatchupError) {
+      return NextResponse.json(httpErrorBody(error.code), { status: error.status })
+    }
+    return httpErrorResponse('IE_REP_007', getReportMatchupErrorStatus(error))
   }
 }

@@ -1,15 +1,23 @@
 import { prisma } from '@/lib/prisma'
-import type { Trade } from '@prisma/client'
+import type { Decimal } from '@prisma/client/runtime/library'
 import { portfolioService } from './PortfolioService'
 
 export type PortfolioHistoryPoint = { at: string; value: number }
 
 type PositionState = Map<string, { qty: number; avgPrice: number }>
 
+type TradeSlice = {
+  type: 'BUY' | 'SELL'
+  symbol: string
+  quantity: number
+  price: Decimal
+  totalValue: Decimal
+}
+
 function applyTrade(
   cash: number,
   positions: PositionState,
-  trade: Pick<Trade, 'type' | 'symbol' | 'quantity' | 'price' | 'totalValue'>
+  trade: TradeSlice
 ): number {
   const tv = trade.totalValue.toNumber()
   if (trade.type === 'BUY') {

@@ -5,14 +5,18 @@ import type {
   ReportMatchupResponse,
   ReportOptionsResponse,
 } from '@/types'
+import { HTTP_ERROR_CATALOG, type HttpErrorCode } from '@/lib/api/httpErrors'
 import { prisma } from '@/lib/prisma'
 
-class ReportMatchupError extends Error {
-  status: number
+export class ReportMatchupError extends Error {
+  readonly status: number
+  readonly code: HttpErrorCode
 
-  constructor(status: number, message: string) {
-    super(message)
+  constructor(status: number, code: HttpErrorCode) {
+    super(HTTP_ERROR_CATALOG[code].dev)
+    this.name = 'ReportMatchupError'
     this.status = status
+    this.code = code
   }
 }
 
@@ -67,7 +71,7 @@ async function loadDataset(): Promise<QuarterlyReportRecord[]> {
     orderBy: [{ symbol: 'asc' }, { quarter: 'asc' }],
   })
   if (rows.length === 0) {
-    throw new ReportMatchupError(503, 'No quarterly report data available. Run the pipeline to populate the database.')
+    throw new ReportMatchupError(503, 'IE_REP_001')
   }
   return rows.map(toReportRecord)
 }
@@ -128,11 +132,11 @@ export async function getReportMatchup(
   const rightSymbol = normalizeSymbol(rightSymbolInput)
 
   if (!leftSymbol || !rightSymbol) {
-    throw new ReportMatchupError(400, 'Missing or invalid required query parameters: left, right')
+    throw new ReportMatchupError(400, 'IE_REP_002')
   }
 
   if (leftSymbol === rightSymbol) {
-    throw new ReportMatchupError(400, 'left and right must be different symbols')
+    throw new ReportMatchupError(400, 'IE_REP_003')
   }
 
   const reports = await loadDataset()
@@ -141,7 +145,7 @@ export async function getReportMatchup(
   const leftReports = grouped.get(leftSymbol)
   const rightReports = grouped.get(rightSymbol)
   if (!leftReports || !rightReports) {
-    throw new ReportMatchupError(400, 'Unsupported symbol requested')
+    throw new ReportMatchupError(400, 'IE_REP_004')
   }
 
   const leftQuarters = new Set(leftReports.map((report) => report.quarter))
@@ -150,18 +154,18 @@ export async function getReportMatchup(
   commonQuarters.sort(compareQuarterDesc)
 
   if (commonQuarters.length === 0) {
-    throw new ReportMatchupError(404, 'No common valid quarter for the requested symbols')
+    throw new ReportMatchupError(404, 'IE_REP_005')
   }
 
   const selectedQuarter = quarter?.trim() || commonQuarters[0]
   if (!commonQuarters.includes(selectedQuarter)) {
-    throw new ReportMatchupError(404, 'Requested quarter is not available for both symbols')
+    throw new ReportMatchupError(404, 'IE_REP_006')
   }
 
   const left = leftReports.find((report) => report.quarter === selectedQuarter)
   const right = rightReports.find((report) => report.quarter === selectedQuarter)
   if (!left || !right) {
-    throw new ReportMatchupError(404, 'Requested quarter is not available for both symbols')
+    throw new ReportMatchupError(404, 'IE_REP_006')
   }
 
   return {

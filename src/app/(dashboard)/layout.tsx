@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { LiveMarketsStrip } from "@/components/LiveMarketsStrip"
+import { PortfolioNewsSidebar } from "@/components/PortfolioNewsSidebar"
 import { PaperTradingAuthProvider } from "@/contexts/PaperTradingAuthContext"
 import { DashboardAuthNav } from "@/components/auth/DashboardAuthNav"
 
@@ -10,7 +11,7 @@ export default function DashboardLayout({
 }) {
   return (
     <PaperTradingAuthProvider>
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-screen flex-col bg-background">
         <nav className="border-b">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between gap-4">
@@ -54,7 +55,12 @@ export default function DashboardLayout({
           </div>
         </nav>
         <LiveMarketsStrip />
-        <main className="container mx-auto px-4 py-8">{children}</main>
+        <div className="flex min-h-0 flex-1">
+          <main className="container mx-auto min-w-0 flex-1 px-4 py-8">{children}</main>
+          <aside className="hidden w-80 shrink-0 overflow-y-auto border-l bg-muted/5 lg:sticky lg:top-0 lg:self-start lg:block lg:max-h-[calc(100dvh-9rem)]">
+            <PortfolioNewsSidebar />
+          </aside>
+        </div>
       </div>
     </PaperTradingAuthProvider>
   )
