@@ -26,6 +26,9 @@
       "@/*": [
         "./src/*"
       ],
+      "~/*": [
+        "./src/*"
+      ],
       "@alpaca-data-pipeline": [
         "./alpaca_data_pipeline"
       ],

@@ -12,7 +12,7 @@
 
 import { config } from 'dotenv'
 import { resolve } from 'path'
-import { Prisma } from '@prisma/client'
+import type { Decimal } from '@prisma/client/runtime/library'
 import { prisma } from '@/lib/prisma'
 import { getSupabaseServiceClient } from '../supabaseAdmin'
 import type { MarketCandleRow } from '../types'
@@ -20,10 +20,23 @@ import { upsertMarketCandles } from '../upsertCandles'
 
 config({ path: resolve(process.cwd(), '.env') })
 
+interface RealtimePriceRow {
+  symbol: string
+  timestamp: Date
+  timeframe: string
+  open: Decimal
+  high: Decimal
+  low: Decimal
+  close: Decimal
+  volume: bigint | null
+  vwap: Decimal | null
+  tradeCount: number | null
+}
+
 async function backfillRealtime(): Promise<{ rows: number; error?: string }> {
-  const rows = await prisma.marketPrice.findMany({
+  const rows = (await prisma.marketPrice.findMany({
     orderBy: [{ symbol: 'asc' }, { timestamp: 'asc' }],
-  })
+  })) as RealtimePriceRow[]
   const mapped: MarketCandleRow[] = rows.map((r) => ({
     symbol: r.symbol,
     bucket_start: r.timestamp.toISOString(),
@@ -46,21 +59,19 @@ async function backfillRealtime(): Promise<{ rows: number; error?: string }> {
 
 async function backfillDailyS3(): Promise<{ rows: number; error?: string; skipped?: string }> {
   try {
-    const raw = await prisma.$queryRaw<
-      Array<{
-        symbol: string
-        as_of_date: Date
-        open: Prisma.Decimal
-        high: Prisma.Decimal
-        low: Prisma.Decimal
-        close: Prisma.Decimal
-        volume: number | null
-      }>
-    >(Prisma.sql`
+    const raw = (await prisma.$queryRawUnsafe(`
       SELECT symbol, as_of_date, open, high, low, close, volume::bigint AS volume
       FROM market_prices
       ORDER BY symbol, as_of_date
-    `)
+    `)) as Array<{
+      symbol: string
+      as_of_date: Date
+      open: Decimal
+      high: Decimal
+      low: Decimal
+      close: Decimal
+      volume: number | null
+    }>
     const mapped: MarketCandleRow[] = raw.map((r) => {
       const d = r.as_of_date
       const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0))

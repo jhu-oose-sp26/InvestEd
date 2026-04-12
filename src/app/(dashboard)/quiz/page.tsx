@@ -139,6 +139,15 @@ export default function QuizPage() {
         >
           {loading ? "Loading..." : "Start Today's Challenge"}
         </button>
+        <div className="mt-10 pt-8 border-t border-border max-w-md mx-auto">
+          <p className="text-sm text-muted-foreground mb-3">Build quizzes from your own reports.</p>
+          <Link
+            href="/quiz/custom"
+            className="inline-flex items-center justify-center px-6 py-2.5 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors"
+          >
+            Custom Quizzes
+          </Link>
+        </div>
       </div>
     )
   }
@@ -214,9 +223,15 @@ export default function QuizPage() {
     return (
       <div className="max-w-2xl mx-auto text-center">
         <h1 className="text-2xl font-bold mb-4">No questions today</h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mb-8">
           The quiz dataset may not be ready. Build the report matchup data first.
         </p>
+        <Link
+          href="/quiz/custom"
+          className="inline-flex items-center justify-center px-6 py-2.5 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors"
+        >
+          Custom Quizzes
+        </Link>
       </div>
     )
   }
@@ -282,9 +297,17 @@ export default function QuizPage() {
             )
           })}
         </div>
-        <p className="text-center text-muted-foreground">
+        <p className="text-center text-muted-foreground mb-6">
           Come back tomorrow for a new challenge
         </p>
+        <div className="text-center">
+          <Link
+            href="/quiz/custom"
+            className="inline-flex items-center justify-center px-6 py-2.5 rounded-md border border-input bg-background text-sm font-medium hover:bg-muted transition-colors"
+          >
+            Custom Quizzes
+          </Link>
+        </div>
       </div>
     )
   }

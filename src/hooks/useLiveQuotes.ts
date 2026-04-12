@@ -1,12 +1,23 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
+import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
+
+/** Optional flags for `refetch` on the SSE-based hook (`useLiveQuotesStream`). Ignored by the polling hook. */
+export type LiveQuotesRefetchOptions = {
+  /** Reopen the shared EventSource so the server sends a fresh snapshot; use for explicit user refresh. */
+  reconnectSSE?: boolean
+}
 
 /** Shape returned by GET /api/live-quotes – use for graphs and multi-symbol UI. */
 export interface LiveQuoteItem {
   symbol: string
   price: number
   timestamp: number
+  /** Present when the price time came from streaming trades rather than a periodic update. */
+  webSocketUpdatedAt?: number
+  /** When this row was last refreshed for you (for clock and “how long ago”). */
+  retrievedAtMs?: number
   volume?: number
   change?: number
   percentChange?: number
@@ -17,12 +28,13 @@ export interface LiveQuotesState {
   quotes: LiveQuoteItem[]
   loading: boolean
   error: string | null
-  refetch: () => void
+  refetch: (options?: LiveQuotesRefetchOptions) => void | Promise<void>
 }
 
 export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000): LiveQuotesState {
   const [quotes, setQuotes] = useState<LiveQuoteItem[]>([])
-  const [loading, setLoading] = useState(false)
+  /** True on first paint when we will fetch, so UIs don’t flash an empty-state message before the request starts. */
+  const [loading, setLoading] = useState(() => symbols.length > 0)
   const [error, setError] = useState<string | null>(null)
 
   const fetchQuotes = useCallback(async (isInitialLoad?: boolean) => {
@@ -40,18 +52,41 @@ export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000):
       const data = await res.json()
       if (!res.ok) {
         if (isFirstLoad) {
-          setError(data.error ?? `Request failed (${res.status})`)
+          setError(
+            softenPublicErrorMessage(
+              typeof data?.error === 'string'
+                ? data.error
+                : 'Something went wrong on our side. Please try again in a moment. (IE_GEN_001)',
+            ),
+          )
           setQuotes([])
         }
         return
       }
       const next = Array.isArray(data) ? data : []
-      if (next.length > 0) setQuotes(next)
-      else if (isFirstLoad) setQuotes([])
-      // On background poll: only update when we got a non-empty array; otherwise keep previous quotes
+      /** Keep requested symbol order; merge so a partial poll does not wipe other rows. */
+      const mergeBySymbolOrder = (
+        prev: LiveQuoteItem[],
+        incoming: LiveQuoteItem[],
+        order: string[],
+      ): LiveQuoteItem[] => {
+        const map = new Map(prev.map((q) => [q.symbol, q]))
+        for (const q of incoming) map.set(q.symbol, q)
+        return order.map((sym) => map.get(sym)).filter((q): q is LiveQuoteItem => q != null)
+      }
+      if (isFirstLoad) {
+        if (next.length > 0) setQuotes(mergeBySymbolOrder([], next, list))
+        else setQuotes([])
+      } else if (next.length > 0) {
+        setQuotes((prev) => mergeBySymbolOrder(prev, next, list))
+      }
     } catch (e) {
       if (isFirstLoad) {
-        setError(e instanceof Error ? e.message : 'Failed to fetch quotes')
+        setError(
+          softenPublicErrorMessage(
+            'We could not load live prices. Check your connection and try again. (IE_CLT_001)',
+          ),
+        )
         setQuotes([])
       }
     } finally {
@@ -63,6 +98,7 @@ export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000):
     if (!symbols.length) {
       setQuotes([])
       setError(null)
+      setLoading(false)
       return
     }
     fetchQuotes(true) // initial load: show loading
@@ -71,5 +107,9 @@ export function useLiveQuotes(symbols: string[], pollIntervalMs: number = 5000):
     return () => clearInterval(id)
   }, [symbols.join(','), pollIntervalMs, fetchQuotes])
 
-  return { quotes, loading, error, refetch: fetchQuotes }
+  const refetchPublic = useCallback(() => {
+    void fetchQuotes()
+  }, [fetchQuotes])
+
+  return { quotes, loading, error, refetch: refetchPublic }
 }

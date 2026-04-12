@@ -9,11 +9,13 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
+  updateProfile,
   type User,
 } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebaseClient'
@@ -23,6 +25,8 @@ export type AppUser = {
   email: string
   name: string | null
   firebaseUid: string | null
+  /** ISO timestamp from Prisma `User.createdAt` */
+  createdAt: string
 }
 
 export type QuizStreakInfo = {
@@ -46,7 +50,7 @@ type PaperTradingAuthState = {
   configError: string | null
   error: string | null
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, displayName?: string) => Promise<void>
   signOut: () => Promise<void>
   clearError: () => void
   refreshQuizStreak: () => Promise<void>
@@ -103,6 +107,7 @@ async function syncServerSession(user: User): Promise<{
 }
 
 export function PaperTradingAuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter()
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
   const [user, setUser] = useState<AppUser | null>(null)
   const [portfolioId, setPortfolioId] = useState<string | null>(null)
@@ -161,10 +166,15 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
     await signInWithEmailAndPassword(auth, email.trim(), password)
   }, [])
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, displayName?: string) => {
     setError(null)
     const auth = getFirebaseAuth()
-    await createUserWithEmailAndPassword(auth, email.trim(), password)
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password)
+    const trimmedName = displayName?.trim()
+    if (trimmedName) {
+      await updateProfile(cred.user, { displayName: trimmedName })
+    }
+    await cred.user.getIdToken(true)
   }, [])
 
   const refreshQuizStreak = useCallback(async () => {
@@ -194,7 +204,8 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
     setUser(null)
     setPortfolioId(null)
     setQuizStreak(null)
-  }, [])
+    router.replace('/')
+  }, [router])
 
   const value = useMemo<PaperTradingAuthState>(
     () => ({
