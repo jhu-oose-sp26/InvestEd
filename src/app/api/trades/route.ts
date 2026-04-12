@@ -3,6 +3,8 @@ import { tradeService } from '@/features/trading/TradeService'
 import { resolveTradeExecutionPrice } from '@/features/market-data/executionPrice'
 import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
 
+import { prisma } from '@/lib/prisma'
+
 /** Trade pricing may use Finnhub (`ws`); keep on Node runtime. */
 export const runtime = 'nodejs'
 
@@ -20,11 +22,22 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = 'temp-user-id'
+    
+    // Find the primary portfolio for the user (assuming one for now as per temp-user-id usage)
+    const portfolio = await prisma.portfolio.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'asc' }
+    })
+    
+    if (!portfolio) {
+      console.error(`No portfolio found for user ${userId}`)
+      return httpErrorResponse('IE_PFO_001', 500) // Or new error code
+    }
 
     const { price, source: executionPriceSource } = await resolveTradeExecutionPrice(symbol)
 
     const result = await tradeService.executeTrade({
-      userId,
+      portfolioId: portfolio.id,
       symbol,
       type,
       quantity: parseInt(quantity),
