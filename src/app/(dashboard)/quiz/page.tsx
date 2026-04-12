@@ -1,19 +1,64 @@
 "use client"
 
-import { useState } from "react"
+import Link from "next/link"
+import { useState, useEffect, useRef } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import type { QuizQuestionsResponse } from "@/types"
+import type { QuizQuestionsResponse, QuizCompleteResponse } from "@/types"
+import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
 
 type QuizState = "start" | "questions" | "results"
 
 export default function QuizPage() {
+  const { user, quizStreak, refreshQuizStreak } = usePaperTradingAuth()
   const [state, setState] = useState<QuizState>("start")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<QuizQuestionsResponse | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [serverResult, setServerResult] = useState<QuizCompleteResponse | null>(null)
+  const [streakSubmitting, setStreakSubmitting] = useState(false)
+  const [streakError, setStreakError] = useState<string | null>(null)
+  const submitCompleteRef = useRef(false)
+
+  useEffect(() => {
+    if (state === "start") {
+      submitCompleteRef.current = false
+      setServerResult(null)
+      setStreakError(null)
+    }
+  }, [state])
+
+  useEffect(() => {
+    if (state !== "results" || !data) return
+    if (!user) return
+    if (submitCompleteRef.current) return
+    submitCompleteRef.current = true
+    setStreakSubmitting(true)
+    setStreakError(null)
+    ;(async () => {
+      try {
+        const res = await fetch("/api/quiz/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ date: data.date, answers }),
+        })
+        const j = (await res.json().catch(() => ({}))) as { error?: string } & Partial<QuizCompleteResponse>
+        if (!res.ok) {
+          throw new Error(typeof j.error === "string" ? j.error : "Could not save result")
+        }
+        setServerResult(j as QuizCompleteResponse)
+        await refreshQuizStreak()
+      } catch (e) {
+        setStreakError(e instanceof Error ? e.message : "Could not save result")
+        submitCompleteRef.current = false
+      } finally {
+        setStreakSubmitting(false)
+      }
+    })()
+  }, [state, data, user, answers, refreshQuizStreak])
 
   const today = new Date().toISOString().slice(0, 10)
   const formatDate = (d: string) => {
@@ -74,6 +119,14 @@ export default function QuizPage() {
         <p className="text-sm text-muted-foreground mb-8">
           {formatDate(today)}
         </p>
+        {user && quizStreak && (
+          <p className="text-sm text-muted-foreground mb-6">
+            Streak:{" "}
+            <span className="font-semibold text-foreground">{quizStreak.currentStreak}</span>
+            {" · "}
+            Best: {quizStreak.longestStreak}
+          </p>
+        )}
         {error && (
           <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-800 border border-red-200">
             {error}
@@ -175,6 +228,38 @@ export default function QuizPage() {
         <p className="text-muted-foreground mb-8">
           You got {score} out of {total} correct
         </p>
+        <div className="mb-8 space-y-3">
+          {user ? (
+            streakSubmitting ? (
+              <p className="text-sm text-muted-foreground text-center">Saving your result…</p>
+            ) : streakError ? (
+              <p className="text-sm text-red-600 text-center">{streakError}</p>
+            ) : serverResult ? (
+              <div className="p-4 rounded-lg bg-muted/50 border border-border text-center">
+                <p className="font-medium">
+                  {serverResult.passed ? (
+                    <>
+                      Streak: <strong>{serverResult.streak}</strong> day
+                      {serverResult.streak !== 1 ? "s" : ""} (all correct)
+                    </>
+                  ) : (
+                    <>Streak unchanged — get every question right to earn a streak day.</>
+                  )}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Best streak: {serverResult.longestStreak}
+                </p>
+              </div>
+            ) : null
+          ) : (
+            <p className="text-sm text-muted-foreground text-center">
+              <Link href="/" className="text-primary underline underline-offset-2">
+                Sign in
+              </Link>{" "}
+              to track your daily streak.
+            </p>
+          )}
+        </div>
         <div className="space-y-6 mb-10">
           {data.questions.map((q) => {
             const userAnswer = answers[q.id]

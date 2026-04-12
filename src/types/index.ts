@@ -10,4 +10,4 @@ export type {
   ReportMatchupResponse,
   ReportOptionsResponse,
 } from './report-matchup'
-export type { QuizQuestion, QuizQuestionsResponse } from './quiz'
+export type { QuizQuestion, QuizQuestionsResponse, QuizCompleteResponse } from './quiz'
