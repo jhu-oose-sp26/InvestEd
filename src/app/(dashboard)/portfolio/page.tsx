@@ -57,8 +57,6 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const load = async () => {
-      try {
     // TODO: Replace with actual portfolio selection from user context
     const portfolioId = 'temp-portfolio-id'
 
@@ -164,9 +162,8 @@ export default function PortfolioPage() {
         <div className="p-6 border rounded-lg">
           <div className="text-sm text-muted-foreground mb-1">Unrealized P&L</div>
           <div
-            className={`text-2xl font-bold ${
-              portfolio.totalUnrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
-            }`}
+            className={`text-2xl font-bold ${portfolio.totalUnrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
+              }`}
           >
             {formatCurrency(portfolio.totalUnrealizedPnL)} ({formatPercent(portfolio.totalUnrealizedPnLPercent)})
           </div>
@@ -228,12 +225,12 @@ export default function PortfolioPage() {
                 labelFormatter={(label) =>
                   typeof label === "number"
                     ? new Date(label).toLocaleString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
                     : String(label)
                 }
                 contentStyle={{ borderRadius: "8px" }}
@@ -422,9 +419,8 @@ export default function PortfolioPage() {
                     <td className="px-4 py-3">{formatCurrency(position.totalCost)}</td>
                     <td className="px-4 py-3">{formatCurrency(position.currentValue)}</td>
                     <td
-                      className={`px-4 py-3 font-medium ${
-                        position.unrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
+                      className={`px-4 py-3 font-medium ${position.unrealizedPnL >= 0 ? "text-green-600" : "text-red-600"
+                        }`}
                     >
                       {formatCurrency(position.unrealizedPnL)} ({formatPercent(position.unrealizedPnLPercent)})
                     </td>
