@@ -16,7 +16,8 @@ const REST_RETRY_DELAY_MS = 280
 const WS_WARM_MAX_MS = 180
 const WS_WARM_TICK_MS = 36
 /** One shared wait for `getLiveQuotes` so we do not run N parallel warm loops. */
-const WS_BATCH_WARM_MAX_MS = 160
+/** Give WS trades a moment after batch subscribe before falling through to REST for many symbols. */
+const WS_BATCH_WARM_MAX_MS = 650
 
 async function waitForWsCache(symbol: string): Promise<void> {
   const sym = symbol.toUpperCase()
