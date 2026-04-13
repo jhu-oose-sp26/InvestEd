@@ -89,6 +89,21 @@ async function ensureEmail(uid: string, emailFromToken: string | undefined): Pro
   throw new Error('NO_EMAIL')
 }
 
+/** True if this UID is not a Firebase user (deleted / different project). */
+async function isFirebaseUserMissing(uid: string): Promise<boolean> {
+  getFirebaseAdminApp()
+  const auth = getAuth()
+  try {
+    await auth.getUser(uid)
+    return false
+  } catch (e: unknown) {
+    const o = e && typeof e === 'object' ? (e as { code?: string; errorInfo?: { code?: string } }) : null
+    const code = o?.code ?? o?.errorInfo?.code ?? ''
+    if (code === 'auth/user-not-found') return true
+    throw e
+  }
+}
+
 /**
  * Links or creates a Prisma user for this Firebase account.
  * If an existing row has the same email but no firebaseUid, links it.
@@ -135,7 +150,11 @@ export async function getOrCreateUserFromFirebase(
   const byEmail = await prisma.user.findUnique({ where: { email: emailNorm } })
   if (byEmail) {
     if (byEmail.firebaseUid && byEmail.firebaseUid !== uid) {
-      throw new Error('ACCOUNT_CONFLICT')
+      const oldGone = await isFirebaseUserMissing(byEmail.firebaseUid)
+      if (!oldGone) {
+        throw new Error('ACCOUNT_CONFLICT')
+      }
+      // DB still points at a deleted Firebase user — link this row to the current account.
     }
     const data: import('@prisma/client').Prisma.UserUpdateInput = { firebaseUid: uid }
     if (nameNorm && !byEmail.name) data.name = nameNorm

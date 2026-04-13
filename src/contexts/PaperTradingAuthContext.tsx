@@ -20,6 +20,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { getFirebaseAuth } from '@/lib/firebaseClient'
+import { jsonErrorMessage } from '@/lib/api/jsonErrorMessage'
 
 export type AppUser = {
   id: string
@@ -79,15 +80,15 @@ async function syncServerSession(
     body: JSON.stringify(body),
   })
   if (!sessionRes.ok) {
-    const j = (await sessionRes.json().catch(() => ({}))) as { error?: string }
-    throw new Error(typeof j.error === 'string' ? j.error : 'Could not create session')
+    const j = await sessionRes.json().catch(() => ({}))
+    throw new Error(jsonErrorMessage(j, 'Could not create session'))
   }
 
   const loadMe = async (): Promise<MeResponse> => {
     const meRes = await fetch('/api/auth/me', { credentials: 'include' })
     if (!meRes.ok) {
-      const j = (await meRes.json().catch(() => ({}))) as { error?: string }
-      throw new Error(typeof j.error === 'string' ? j.error : 'Could not load profile')
+      const j = await meRes.json().catch(() => ({}))
+      throw new Error(jsonErrorMessage(j, 'Could not load profile'))
     }
     return meRes.json() as Promise<MeResponse>
   }
@@ -101,8 +102,8 @@ async function syncServerSession(
       body: JSON.stringify({}),
     })
     if (!createRes.ok) {
-      const j = (await createRes.json().catch(() => ({}))) as { error?: string }
-      throw new Error(typeof j.error === 'string' ? j.error : 'Could not create portfolio')
+      const j = await createRes.json().catch(() => ({}))
+      throw new Error(jsonErrorMessage(j, 'Could not create portfolio'))
     }
     data = await loadMe()
   }
@@ -140,14 +141,15 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       setFirebaseUser(u)
-      setError(null)
       if (!u) {
         setUser(null)
         setPortfolioId(null)
         setQuizStreak(null)
+        setSessionSyncing(false)
         setReady(true)
         return
       }
+      setError(null)
       setSessionSyncing(true)
       try {
         const extras = sessionExtrasRef.current
@@ -161,10 +163,20 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
         setQuizStreak(streak)
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Session setup failed'
-        setError(msg)
         setUser(null)
         setPortfolioId(null)
         setQuizStreak(null)
+        const emailLinkConflict =
+          msg.includes('already linked to another account') ||
+          msg.includes('This email is already linked')
+        if (emailLinkConflict) {
+          try {
+            await firebaseSignOut(auth)
+          } catch {
+            /* ignore */
+          }
+        }
+        setError(msg)
       } finally {
         setSessionSyncing(false)
         setReady(true)
