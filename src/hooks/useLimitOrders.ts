@@ -15,14 +15,14 @@ export interface LimitOrder {
   market: { title: string }
 }
 
-export function useLimitOrders(userId = 'temp-user-id', pollIntervalMs = 3000) {
+export function useLimitOrders(pollIntervalMs = 3000) {
   const [orders, setOrders] = useState<LimitOrder[]>([])
   const [loading, setLoading] = useState(false)
 
   const fetch_ = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/limit-orders?userId=${encodeURIComponent(userId)}`)
+      const res = await fetch('/api/limit-orders', { credentials: 'include' })
       const data = await res.json()
       if (res.ok) setOrders(data.orders ?? [])
     } catch {
@@ -30,7 +30,7 @@ export function useLimitOrders(userId = 'temp-user-id', pollIntervalMs = 3000) {
     } finally {
       setLoading(false)
     }
-  }, [userId])
+  }, [])
 
   useEffect(() => {
     fetch_()

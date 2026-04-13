@@ -4,16 +4,16 @@ import type { LimitOrder } from '@/hooks/useLimitOrders'
 
 interface Props {
   orders: LimitOrder[]
-  userId?: string
   onCancel: () => void
 }
 
-export function OpenOrders({ orders, userId = 'temp-user-id', onCancel }: Props) {
+export function OpenOrders({ orders, onCancel }: Props) {
   const handleCancel = async (orderId: string) => {
     const res = await fetch('/api/limit-orders', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, userId }),
+      credentials: 'include',
+      body: JSON.stringify({ orderId }),
     })
     if (res.ok) onCancel()
   }

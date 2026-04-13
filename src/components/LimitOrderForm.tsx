@@ -4,11 +4,10 @@ import { useState } from 'react'
 
 interface Props {
   marketId: string
-  userId?: string
   onOrderPlaced?: () => void
 }
 
-export function LimitOrderForm({ marketId, userId = 'temp-user-id', onOrderPlaced }: Props) {
+export function LimitOrderForm({ marketId, onOrderPlaced }: Props) {
   const [side, setSide] = useState<'YES' | 'NO'>('YES')
   const [orderType, setOrderType] = useState<'LIMIT' | 'IOC'>('LIMIT')
   const [limitPrice, setLimitPrice] = useState('')
@@ -23,7 +22,8 @@ export function LimitOrderForm({ marketId, userId = 'temp-user-id', onOrderPlace
       const res = await fetch('/api/limit-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ marketId, side, orderType, limitPrice: parseFloat(limitPrice), quantity: parseInt(quantity), userId }),
+        credentials: 'include',
+        body: JSON.stringify({ marketId, side, orderType, limitPrice: parseFloat(limitPrice), quantity: parseInt(quantity) }),
       })
       const data = await res.json()
       if (res.ok) {

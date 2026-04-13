@@ -18,6 +18,7 @@ function ResolveMarket({ marketId, onResolved }: { marketId: string; onResolved:
       const res = await fetch('/api/markets', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ marketId, outcome }),
       })
       const data = await res.json()
@@ -49,12 +50,6 @@ function ResolveMarket({ marketId, onResolved }: { marketId: string; onResolved:
   )
 }
 
-const TEST_USERS = [
-  { id: 'temp-user-id', label: 'Dev User' },
-  { id: 'user-a', label: 'Test User A' },
-  { id: 'user-b', label: 'Test User B' },
-]
-
 interface Market {
   id: string
   title: string
@@ -69,10 +64,8 @@ export default function OrderBookPage() {
   const [markets, setMarkets] = useState<Market[]>([])
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeUserId, setActiveUserId] = useState('temp-user-id')
-
   const { orderBook, loading: obLoading, refetch: refetchOrderBook } = useOrderBook(selectedMarket?.id ?? "")
-  const { orders, refetch: refetchOrders } = useLimitOrders(activeUserId)
+  const { orders, refetch: refetchOrders } = useLimitOrders()
 
   const refetchAll = useCallback(() => {
     refetchOrderBook()
@@ -106,6 +99,7 @@ export default function OrderBookPage() {
       const res = await fetch("/api/markets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ title, description: description || undefined, resolutionDate }),
       })
       if (res.ok) {
@@ -130,15 +124,6 @@ export default function OrderBookPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <select
-            value={activeUserId}
-            onChange={e => setActiveUserId(e.target.value)}
-            className="border rounded-md px-3 py-2 text-sm bg-background"
-          >
-            {TEST_USERS.map(u => (
-              <option key={u.id} value={u.id}>{u.label}</option>
-            ))}
-          </select>
           <button
             onClick={() => setShowCreate(!showCreate)}
             className="px-4 py-2 bg-primary text-primary-foreground font-medium rounded-md hover:opacity-90 text-sm"
@@ -221,14 +206,14 @@ export default function OrderBookPage() {
               <OrderBook orderBook={orderBook} loading={obLoading} />
             </div>
             <div className="space-y-4">
-              <LimitOrderForm marketId={selectedMarket.id} userId={activeUserId} onOrderPlaced={refetchAll} />
+              <LimitOrderForm marketId={selectedMarket.id} onOrderPlaced={refetchAll} />
               <ResolveMarket marketId={selectedMarket.id} onResolved={() => { fetchMarkets(); refetchAll() }} />
             </div>
           </div>
         </>
       )}
 
-      <OpenOrders orders={orders} userId={activeUserId} onCancel={refetchAll} />
+      <OpenOrders orders={orders} onCancel={refetchAll} />
     </div>
   )
 }
