@@ -76,13 +76,13 @@ export class LimitOrderService {
       where: { marketId, status: 'OPEN' },
     })
 
-    // Best bid first for both sides
+    // YES: highest bid first; NO: lowest ask first (limitPrice = YES ask price)
     const yesOrders = candidates
       .filter(o => o.side === 'YES')
       .sort((a, b) => Number(b.limitPrice) - Number(a.limitPrice))
     const noOrders = candidates
       .filter(o => o.side === 'NO')
-      .sort((a, b) => Number(b.limitPrice) - Number(a.limitPrice))
+      .sort((a, b) => Number(a.limitPrice) - Number(b.limitPrice))
 
     // Track remaining qty locally so we can partial-fill within one matchOrders call
     const yesRem = yesOrders.map(o => o.quantity)

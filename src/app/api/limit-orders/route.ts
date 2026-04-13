@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { limitOrderService } from '@/features/trading/LimitOrderService'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { marketId, side, orderType = 'LIMIT', limitPrice, quantity, userId: bodyUserId } = await request.json()
-    const userId = bodyUserId || 'temp-user-id' // TODO: replace with auth session
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+
+    const { marketId, side, orderType = 'LIMIT', limitPrice, quantity } = await request.json()
+    const userId = auth.user.id
 
     const result = await limitOrderService.placeOrder({ userId, marketId, side, orderType, limitPrice, quantity })
     if (!result.success) {
@@ -30,7 +34,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.nextUrl.searchParams.get('userId') || 'temp-user-id'
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
     const orders = await limitOrderService.getUserOrders(userId)
     return NextResponse.json({ orders })
   } catch {
@@ -40,8 +46,11 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { orderId, userId: bodyUserId } = await request.json()
-    const userId = bodyUserId || 'temp-user-id'
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+
+    const { orderId } = await request.json()
+    const userId = auth.user.id
 
     const result = await limitOrderService.cancelOrder(orderId, userId)
     if (!result.success) {
