@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { marketService } from '@/features/trading/MarketService'
+import { requireAuth } from '@/lib/auth/server'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+
     const { title, description, resolutionDate } = await request.json()
-    const creatorId = 'temp-user-id' // TODO: replace with auth session
+    const creatorId = auth.user.id
 
     const result = await marketService.createMarket({ creatorId, title, description, resolutionDate })
     if (!result.success) {
