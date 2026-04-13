@@ -5,6 +5,7 @@ import { useParams } from "next/navigation"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
 
 interface QuizQuestion {
   id: string
@@ -25,8 +26,6 @@ interface CustomQuizFull {
 
 type QuizState = "start" | "questions" | "results"
 
-const CURRENT_USER_ID = 'temp-user-id'
-
 function shuffled<T>(arr: T[]): T[] {
   const out = [...arr]
   for (let i = out.length - 1; i > 0; i--) {
@@ -37,6 +36,7 @@ function shuffled<T>(arr: T[]): T[] {
 }
 
 export default function TakeCustomQuizPage() {
+  const { user } = usePaperTradingAuth()
   const { id } = useParams<{ id: string }>()
   const [quiz, setQuiz] = useState<CustomQuizFull | null>(null)
   const [shuffledQuestions, setShuffledQuestions] = useState<(QuizQuestion & { shuffledOptions: string[] })[]>([])
@@ -66,7 +66,7 @@ export default function TakeCustomQuizPage() {
   if (error) return <p className="text-red-600">{error}</p>
   if (!quiz) return null
 
-  const isOwner = quiz.userId === CURRENT_USER_ID
+  const isOwner = user ? quiz.userId === user.id : false
   const total = shuffledQuestions.length
   const score = shuffledQuestions.filter((q) => answers[q.id] === q.correctAnswer).length
 

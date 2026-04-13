@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
 
 interface QuizSummary {
   id: string
@@ -14,9 +15,8 @@ interface QuizSummary {
   user: { name: string | null }
 }
 
-const CURRENT_USER_ID = 'temp-user-id'
-
 export default function CustomQuizListPage() {
+  const { user } = usePaperTradingAuth()
   const [quizzes, setQuizzes] = useState<QuizSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -66,7 +66,7 @@ export default function CustomQuizListPage() {
                 )}
                 <p className="text-xs text-muted-foreground mt-2">
                   {quiz._count.questions} question{quiz._count.questions !== 1 ? 's' : ''} ·{' '}
-                  {quiz.userId === CURRENT_USER_ID ? 'You' : (quiz.user.name ?? 'Unknown')} ·{' '}
+                  {quiz.userId === user?.id ? 'You' : (quiz.user.name ?? 'Unknown')} ·{' '}
                   {new Date(quiz.createdAt).toLocaleDateString()}
                 </p>
               </div>

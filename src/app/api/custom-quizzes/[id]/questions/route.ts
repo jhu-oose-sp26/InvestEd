@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
-
-const userId = 'temp-user-id'
+import { requireAuth } from '@/lib/auth/server'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+
     const { id } = await params
     const quiz = await prisma.customQuiz.findUnique({ where: { id } })
 

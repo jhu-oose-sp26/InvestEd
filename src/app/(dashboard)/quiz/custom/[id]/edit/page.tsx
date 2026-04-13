@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { QuizBuilder } from "@/components/quiz/QuizBuilder"
 import type { QuestionData } from "@/components/quiz/QuestionEditor"
+import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
 
 interface CustomQuizFull {
   id: string
@@ -21,9 +22,8 @@ interface CustomQuizFull {
   }[]
 }
 
-const CURRENT_USER_ID = 'temp-user-id'
-
 export default function EditCustomQuizPage() {
+  const { user } = usePaperTradingAuth()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [quiz, setQuiz] = useState<CustomQuizFull | null>(null)
@@ -38,7 +38,7 @@ export default function EditCustomQuizPage() {
         return r.json()
       })
       .then((data: CustomQuizFull) => {
-        if (data.userId !== CURRENT_USER_ID) {
+        if (!user || data.userId !== user.id) {
           router.replace('/quiz/custom')
           return
         }

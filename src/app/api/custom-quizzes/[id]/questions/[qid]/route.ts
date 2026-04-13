@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import type { HttpErrorCode } from '@/lib/api/httpErrors'
 import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
+import { requireAuth } from '@/lib/auth/server'
 
-const userId = 'temp-user-id'
-
-async function getQuestionAndVerifyOwner(quizId: string, qid: string) {
+async function getQuestionAndVerifyOwner(quizId: string, qid: string, userId: string) {
   const question = await prisma.customQuizQuestion.findUnique({
     where: { id: qid },
     include: { quiz: true },
@@ -21,8 +20,12 @@ async function getQuestionAndVerifyOwner(quizId: string, qid: string) {
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string; qid: string }> }) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+
     const { id, qid } = await params
-    const gate = await getQuestionAndVerifyOwner(id, qid)
+    const gate = await getQuestionAndVerifyOwner(id, qid, userId)
     if (!gate.ok) {
       return NextResponse.json(httpErrorBody(gate.error), { status: gate.status })
     }
@@ -63,10 +66,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; qid: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string; qid: string }> }) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+
     const { id, qid } = await params
-    const gate = await getQuestionAndVerifyOwner(id, qid)
+    const gate = await getQuestionAndVerifyOwner(id, qid, userId)
     if (!gate.ok) {
       return NextResponse.json(httpErrorBody(gate.error), { status: gate.status })
     }

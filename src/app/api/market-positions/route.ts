@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/auth/server'
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get('userId') || 'temp-user-id'
+  const auth = await requireAuth(request)
+  if (!auth.ok) return auth.response
+  const userId = auth.user.id
 
   try {
     const positions = await prisma.marketPosition.findMany({

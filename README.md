@@ -150,12 +150,10 @@ docker compose logs -f db
 
     - P3005 on migrate deploy: Baseline by marking migrations that already match your DB as applied (prisma migrate resolve --applied <folder>), then migrate deploy; see Prisma’s baseline production DB docs.
 
-6. Seed the placeholder API user (current routes use `temp-user-id`):
+6. Seed the development users (optional, helps with local testing):
 
 ```bash
-psql "postgresql://<POSTGRES_USER>:<POSTGRES_PASSWORD>@localhost:5432/<POSTGRES_DB>" \
-  -c "INSERT INTO users (id,email,name,\"createdAt\",\"updatedAt\") VALUES ('temp-user-id','temp-user@example.com','Temp User',NOW(),NOW()) ON CONFLICT (id) DO NOTHING; \
-      INSERT INTO portfolios (id,\"userId\",name,\"cashBalance\",\"createdAt\",\"updatedAt\") VALUES ('temp-portfolio-id','temp-user-id','My Portfolio',100000.00,NOW(),NOW()) ON CONFLICT (id) DO NOTHING;"
+npx prisma db seed
 ```
 
 7. Run the development server:

@@ -70,8 +70,8 @@ ALTER TABLE "positions" ADD CONSTRAINT "positions_portfolioId_fkey" FOREIGN KEY 
 ALTER TABLE "custom_quizzes" ADD CONSTRAINT "custom_quizzes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- 8. Seed the exact base schema required for testing
-INSERT INTO "users" ("id", "email", "name", "updatedAt") 
-VALUES ('temp-user-id', 'test@example.com', 'Temp User', CURRENT_TIMESTAMP);
+INSERT INTO "users" ("id", "email", "name", "accountNumber", "updatedAt") 
+VALUES ('dev-user-01', 'test@example.com', 'Dev User', 'IED-DEV-USER', CURRENT_TIMESTAMP);
 
 INSERT INTO "portfolios" ("id", "userId", "name", "cashBalance", "updatedAt") 
-VALUES ('temp-portfolio-id', 'temp-user-id', 'Temp Portfolio', 100000.00, CURRENT_TIMESTAMP);
+VALUES ('portfolio-dev-01', 'dev-user-01', 'Dev Portfolio', 100000.00, CURRENT_TIMESTAMP);

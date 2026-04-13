@@ -6,28 +6,27 @@ async function main() {
   const user = await prisma.user.upsert({
     where: { email: 'test@example.com' },
     update: {
-      id: 'temp-user-id',
-      name: 'Temp User',
-      accountNumber: 'IED-TEMP-USER',
+      id: 'dev-user-01',
+      name: 'Dev User',
     },
     create: {
-      id: 'temp-user-id',
+      id: 'dev-user-01',
       email: 'test@example.com',
-      name: 'Temp User',
-      accountNumber: 'IED-TEMP-USER',
+      name: 'Dev User',
+      accountNumber: 'IED-DEV-USER',
     },
   })
 
   const portfolio = await prisma.portfolio.upsert({
-    where: { id: 'temp-portfolio-id' },
+    where: { id: 'portfolio-dev-01' },
     update: {
       userId: user.id,
-      name: 'Temp Portfolio'
+      name: 'Dev Portfolio'
     },
     create: {
-      id: 'temp-portfolio-id',
+      id: 'portfolio-dev-01',
       userId: user.id,
-      name: 'Temp Portfolio',
+      name: 'Dev Portfolio',
       cashBalance: 100000.00
     }
   })
