@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 const TEST_USERS = [
-  { id: 'temp-user-id', email: 'dev@invested.local', name: 'Dev User', portfolioId: 'temp-portfolio-id', accountNumber: 'IED-temp-user' },
+  { id: 'dev-user-01', email: 'dev@invested.local', name: 'Dev User', portfolioId: 'portfolio-dev-01', accountNumber: 'IED-dev-user' },
   { id: 'user-a', email: 'user-a@invested.local', name: 'Test User A', portfolioId: 'portfolio-user-a', accountNumber: 'IED-user-a' },
   { id: 'user-b', email: 'user-b@invested.local', name: 'Test User B', portfolioId: 'portfolio-user-b', accountNumber: 'IED-user-b' },
 ]

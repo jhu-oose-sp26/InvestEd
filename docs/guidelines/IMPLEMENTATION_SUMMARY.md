@@ -104,7 +104,7 @@ The `executeTrade` function ensures data consistency by:
 
 ## 📝 Notes
 
-- User authentication is placeholder (`temp-user-id`) - needs implementation
+- User authentication is implemented via Firebase and syncs automatically with Prisma user metadata
 - Market data provider reads from `market_prices` in Postgres
 - All monetary values use Prisma `Decimal` type for precision
 - Database transactions ensure ACID compliance for trades

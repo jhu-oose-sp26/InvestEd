@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { httpErrorResponse } from '@/lib/api/httpErrors'
+import { requireAuth } from '@/lib/auth/server'
 
-const userId = 'temp-user-id'
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+    
     const quizzes = await prisma.customQuiz.findMany({
       where: { OR: [{ isPublic: true }, { userId }] },
       include: { _count: { select: { questions: true } }, user: { select: { name: true } } },
@@ -20,6 +23,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+
     const body = await request.json()
     const { title, description, isPublic } = body
 
