@@ -29,15 +29,22 @@ export type AppUser = {
   createdAt: string
 }
 
+export type QuizStreakInfo = {
+  currentStreak: number
+  longestStreak: number
+}
+
 type MeResponse = {
   user: AppUser
   portfolios: { id: string; name: string; cashBalance: string }[]
+  quizStreak: QuizStreakInfo
 }
 
 type PaperTradingAuthState = {
   firebaseUser: User | null
   user: AppUser | null
   portfolioId: string | null
+  quizStreak: QuizStreakInfo | null
   ready: boolean
   sessionSyncing: boolean
   configError: string | null
@@ -46,6 +53,7 @@ type PaperTradingAuthState = {
   signUp: (email: string, password: string, displayName?: string) => Promise<void>
   signOut: () => Promise<void>
   clearError: () => void
+  refreshQuizStreak: () => Promise<void>
 }
 
 const PaperTradingAuthContext = createContext<PaperTradingAuthState | null>(null)
@@ -53,6 +61,7 @@ const PaperTradingAuthContext = createContext<PaperTradingAuthState | null>(null
 async function syncServerSession(user: User): Promise<{
   user: AppUser
   portfolioId: string
+  quizStreak: QuizStreakInfo
 }> {
   const idToken = await user.getIdToken()
   const sessionRes = await fetch('/api/auth/session', {
@@ -94,7 +103,7 @@ async function syncServerSession(user: User): Promise<{
   if (!first) {
     throw new Error('No portfolio available after setup')
   }
-  return { user: data.user, portfolioId: first.id }
+  return { user: data.user, portfolioId: first.id, quizStreak: data.quizStreak }
 }
 
 export function PaperTradingAuthProvider({ children }: { children: ReactNode }) {
@@ -102,6 +111,7 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null)
   const [user, setUser] = useState<AppUser | null>(null)
   const [portfolioId, setPortfolioId] = useState<string | null>(null)
+  const [quizStreak, setQuizStreak] = useState<QuizStreakInfo | null>(null)
   const [ready, setReady] = useState(false)
   const [sessionSyncing, setSessionSyncing] = useState(false)
   const [configError, setConfigError] = useState<string | null>(null)
@@ -125,19 +135,22 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
       if (!u) {
         setUser(null)
         setPortfolioId(null)
+        setQuizStreak(null)
         setReady(true)
         return
       }
       setSessionSyncing(true)
       try {
-        const { user: appUser, portfolioId: pid } = await syncServerSession(u)
+        const { user: appUser, portfolioId: pid, quizStreak: streak } = await syncServerSession(u)
         setUser(appUser)
         setPortfolioId(pid)
+        setQuizStreak(streak)
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Session setup failed'
         setError(msg)
         setUser(null)
         setPortfolioId(null)
+        setQuizStreak(null)
       } finally {
         setSessionSyncing(false)
         setReady(true)
@@ -164,6 +177,17 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
     await cred.user.getIdToken(true)
   }, [])
 
+  const refreshQuizStreak = useCallback(async () => {
+    try {
+      const meRes = await fetch('/api/auth/me', { credentials: 'include' })
+      if (!meRes.ok) return
+      const data = (await meRes.json()) as MeResponse
+      if (data.quizStreak) setQuizStreak(data.quizStreak)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   const signOut = useCallback(async () => {
     setError(null)
     try {
@@ -179,6 +203,7 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
     }
     setUser(null)
     setPortfolioId(null)
+    setQuizStreak(null)
     router.replace('/')
   }, [router])
 
@@ -187,6 +212,7 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
       firebaseUser,
       user,
       portfolioId,
+      quizStreak,
       ready,
       sessionSyncing,
       configError,
@@ -195,11 +221,13 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
       signUp,
       signOut,
       clearError,
+      refreshQuizStreak,
     }),
     [
       firebaseUser,
       user,
       portfolioId,
+      quizStreak,
       ready,
       sessionSyncing,
       configError,
@@ -208,6 +236,7 @@ export function PaperTradingAuthProvider({ children }: { children: ReactNode }) 
       signUp,
       signOut,
       clearError,
+      refreshQuizStreak,
     ]
   )
 

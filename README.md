@@ -148,6 +148,8 @@ docker compose logs -f db
   npm run db:push
 ```
 
+    - P3005 on migrate deploy: Baseline by marking migrations that already match your DB as applied (prisma migrate resolve --applied <folder>), then migrate deploy; see Prisma’s baseline production DB docs.
+
 6. Seed the placeholder API user (current routes use `temp-user-id`):
 
 ```bash

@@ -21,3 +21,12 @@ export interface QuizQuestionsResponse {
   date: string
   questions: QuizQuestion[]
 }
+
+/** POST /api/quiz/complete — server-verified score and streak */
+export interface QuizCompleteResponse {
+  correctCount: number
+  total: number
+  passed: boolean
+  streak: number
+  longestStreak: number
+}
