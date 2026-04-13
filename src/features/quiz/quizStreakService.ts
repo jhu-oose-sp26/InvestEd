@@ -42,33 +42,44 @@ export function scoreDailyQuiz(
   return { correctCount, totalQuestions: questions.length }
 }
 
-export async function countPassStreakEndingAt(userId: string, endDate: string): Promise<number> {
+/** Consecutive UTC days with `passed: true` ending at `endDate` (inclusive). */
+export function countPassStreakEndingAtFromMap(
+  dateToPassed: Map<string, boolean>,
+  endDate: string
+): number {
   let cursor = endDate
   let streak = 0
   for (;;) {
-    const row = await prisma.dailyQuizResult.findUnique({
-      where: { userId_quizDate: { userId, quizDate: cursor } },
-      select: { passed: true },
-    })
-    if (!row?.passed) break
+    if (dateToPassed.get(cursor) !== true) break
     streak++
     cursor = previousUtcDateString(cursor)
   }
   return streak
 }
 
-async function computeLongestPassStreak(userId: string): Promise<number> {
-  const rows = await prisma.dailyQuizResult.findMany({
-    where: { userId, passed: true },
-    select: { quizDate: true },
-    orderBy: { quizDate: 'asc' },
-  })
-  if (rows.length === 0) return 0
+/**
+ * Same rules as the quiz UI / auth/me: today failed → 0; today passed → chain from today;
+ * no row today → chain ending yesterday.
+ */
+export function computeDisplayCurrentStreakFromMap(
+  dateToPassed: Map<string, boolean>,
+  today: string
+): number {
+  const todayPassed = dateToPassed.get(today)
+  if (todayPassed === false) return 0
+  if (todayPassed === true) {
+    return countPassStreakEndingAtFromMap(dateToPassed, today)
+  }
+  return countPassStreakEndingAtFromMap(dateToPassed, previousUtcDateString(today))
+}
+
+function computeLongestPassStreakFromSortedPassedDates(sortedAsc: string[]): number {
+  if (sortedAsc.length === 0) return 0
   let best = 1
   let run = 1
-  for (let i = 1; i < rows.length; i++) {
-    const prev = rows[i - 1].quizDate
-    const curr = rows[i].quizDate
+  for (let i = 1; i < sortedAsc.length; i++) {
+    const prev = sortedAsc[i - 1]
+    const curr = sortedAsc[i]
     if (nextUtcDateString(prev) === curr) {
       run++
       best = Math.max(best, run)
@@ -77,6 +88,14 @@ async function computeLongestPassStreak(userId: string): Promise<number> {
     }
   }
   return best
+}
+
+function longestPassStreakFromRows(rows: { quizDate: string; passed: boolean }[]): number {
+  const passedDates = rows
+    .filter((r) => r.passed)
+    .map((r) => r.quizDate)
+    .sort()
+  return computeLongestPassStreakFromSortedPassedDates(passedDates)
 }
 
 export type QuizStreakSummary = {
@@ -89,25 +108,15 @@ export type QuizStreakSummary = {
  * if today not submitted yet → chain ending yesterday (still "alive").
  */
 export async function getQuizStreakSummary(userId: string): Promise<QuizStreakSummary> {
-  const today = utcTodayString()
-  const todayRow = await prisma.dailyQuizResult.findUnique({
-    where: { userId_quizDate: { userId, quizDate: today } },
-    select: { passed: true },
+  const rows = await prisma.dailyQuizResult.findMany({
+    where: { userId },
+    select: { quizDate: true, passed: true },
   })
-  const longestStreak = await computeLongestPassStreak(userId)
-
-  if (todayRow?.passed === false) {
-    return { currentStreak: 0, longestStreak }
-  }
-  if (todayRow?.passed === true) {
-    return {
-      currentStreak: await countPassStreakEndingAt(userId, today),
-      longestStreak,
-    }
-  }
+  const dateToPassed = new Map(rows.map((r) => [r.quizDate, r.passed]))
+  const today = utcTodayString()
   return {
-    currentStreak: await countPassStreakEndingAt(userId, previousUtcDateString(today)),
-    longestStreak,
+    currentStreak: computeDisplayCurrentStreakFromMap(dateToPassed, today),
+    longestStreak: longestPassStreakFromRows(rows),
   }
 }
 
@@ -155,8 +164,13 @@ export async function completeDailyQuiz(
     },
   })
 
-  const streak = passed ? await countPassStreakEndingAt(userId, date) : 0
-  const longestStreak = await computeLongestPassStreak(userId)
+  const rowsAfter = await prisma.dailyQuizResult.findMany({
+    where: { userId },
+    select: { quizDate: true, passed: true },
+  })
+  const map = new Map(rowsAfter.map((r) => [r.quizDate, r.passed]))
+  const streak = passed ? countPassStreakEndingAtFromMap(map, date) : 0
+  const longestStreak = longestPassStreakFromRows(rowsAfter)
 
   return {
     correctCount,
