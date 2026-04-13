@@ -53,6 +53,7 @@ interface PortfolioSummary {
   }>
 }
 
+
 export default function PortfolioPage() {
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null)
   const [history, setHistory] = useState<PortfolioHistoryPoint[] | null>(null)
