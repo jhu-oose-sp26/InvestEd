@@ -53,7 +53,6 @@ export default function LeaderboardPage() {
   const [view, setView] = useState<LeaderboardView>("portfolio")
   const [portfolioEntries, setPortfolioEntries] = useState<LeaderboardEntry[] | null>(null)
   const [streakEntries, setStreakEntries] = useState<StreakLeaderboardEntry[] | null>(null)
-  const [streakTotal, setStreakTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -81,7 +80,6 @@ export default function LeaderboardPage() {
       throw new Error(typeof data.error === "string" ? data.error : "Could not load streak leaderboard")
     }
     setStreakEntries(data.entries ?? [])
-    setStreakTotal(typeof data.total === "number" ? data.total : (data.entries ?? []).length)
   }, [])
 
   useEffect(() => {
@@ -254,9 +252,6 @@ export default function LeaderboardPage() {
               <Flame className="h-4 w-4 text-orange-600 dark:text-orange-400" aria-hidden />
               <p className="text-sm font-semibold text-foreground">Daily challenge</p>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              {streakTotal} player{streakTotal !== 1 ? "s" : ""} by current streak (all-correct days, UTC).
-            </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
