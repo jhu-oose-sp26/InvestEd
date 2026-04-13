@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { tradeService } from '@/features/trading/TradeService'
 import { resolveTradeExecutionPrice } from '@/features/market-data/executionPrice'
 import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
+import { requireAuth } from '@/lib/auth/server'
 
 import { prisma } from '@/lib/prisma'
 
@@ -10,6 +11,10 @@ export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    
+    const userId = auth.user.id
     const body = await request.json()
     const { symbol, type, quantity } = body
 
@@ -20,8 +25,6 @@ export async function POST(request: NextRequest) {
     if (type !== 'BUY' && type !== 'SELL') {
       return httpErrorResponse('IE_VAL_008', 400)
     }
-
-    const userId = 'temp-user-id'
     
     // Find the primary portfolio for the user (assuming one for now as per temp-user-id usage)
     const portfolio = await prisma.portfolio.findFirst({

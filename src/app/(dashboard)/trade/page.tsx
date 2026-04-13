@@ -264,17 +264,18 @@ export default function TradePage() {
               </div>
             </div>
 
-            {/* Error / Success Messages */}
-            {message && (
-              <div
-                className={`p-4 rounded-md font-medium ${message.type === "success"
-                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                    : "bg-red-50 text-red-800 border border-red-200"
-                  }`}
-              >
-                {message.text}
-              </div>
-            )}
+          </div>
+        )}
+
+        {/* Error / Success Messages */}
+        {message && (
+          <div
+            className={`mt-4 p-4 rounded-md font-medium ${message.type === "success"
+                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                : "bg-red-50 text-red-800 border border-red-200"
+              }`}
+          >
+            {message.text}
           </div>
         )}
       </div>
