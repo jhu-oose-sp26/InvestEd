@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { usePaperTradingAuth } from '@/contexts/PaperTradingAuthContext'
+import { publicAccountLabel } from '@/lib/auth/userPublicHandle'
 import type { PortfolioSummary, QuizQuestionsResponse } from '@/types'
 import { PORTFOLIO_ERRORS, softenPublicErrorMessage } from '@/lib/userFacingMessages'
 import { cn } from '@/lib/utils'
@@ -253,7 +254,7 @@ export default function AccountPage() {
     )
   }
 
-  const displayName = user.name?.trim() || user.email.split('@')[0]
+  const displayName = publicAccountLabel(user)
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-8">
@@ -278,10 +279,16 @@ export default function AccountPage() {
             >
               <AccountHeroEyebrow />
             </Suspense>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl capitalize">
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               {displayName}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground break-all">{user.email}</p>
+            <p className="mt-1 text-xs font-mono text-muted-foreground">
+              Account {user.accountNumber}
+              {user.username ? (
+                <span className="ml-2 font-sans text-muted-foreground/90">@{user.username}</span>
+              ) : null}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground/80">
               Member since {formatMemberSince(user.createdAt)}
             </p>

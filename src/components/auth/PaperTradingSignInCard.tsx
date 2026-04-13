@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePaperTradingAuth } from '@/contexts/PaperTradingAuthContext'
 import {
   getPasswordFieldState,
@@ -16,6 +16,11 @@ import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
  */
 export function PaperTradingSignInCard() {
   const { signIn, error, clearError, configError } = usePaperTradingAuth()
+
+  useEffect(() => {
+    clearError()
+  }, [clearError])
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)

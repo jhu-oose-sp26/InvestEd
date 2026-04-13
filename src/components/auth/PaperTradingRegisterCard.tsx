@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePaperTradingAuth } from '@/contexts/PaperTradingAuthContext'
 import {
@@ -9,6 +9,7 @@ import {
   validateEmailValue,
   validatePasswordConfirm,
   validatePasswordSignUp,
+  validateUsernameOptional,
 } from '@/lib/auth/emailPasswordValidation'
 import { friendlyFirebaseAuthMessage } from '@/lib/auth/firebaseAuthMessages'
 import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
@@ -19,24 +20,33 @@ import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
  */
 export function PaperTradingRegisterCard() {
   const { signUp, error, clearError, configError } = usePaperTradingAuth()
+
+  useEffect(() => {
+    clearError()
+  }, [clearError])
+
   const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [nameTouched, setNameTouched] = useState(false)
+  const [usernameTouched, setUsernameTouched] = useState(false)
   const [emailTouched, setEmailTouched] = useState(false)
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [confirmTouched, setConfirmTouched] = useState(false)
   const [attemptedSubmit, setAttemptedSubmit] = useState(false)
 
   const showNameMessages = nameTouched || attemptedSubmit
+  const showUsernameMessages = usernameTouched || attemptedSubmit
   const showEmailMessages = emailTouched || attemptedSubmit
   const showPasswordMessages = passwordTouched || attemptedSubmit
   const showConfirmMessages = confirmTouched || attemptedSubmit
 
   const nameError = showNameMessages ? validateDisplayName(name) : null
+  const usernameError = showUsernameMessages ? validateUsernameOptional(username) : null
   const emailError = showEmailMessages ? validateEmailValue(email) : null
   const passwordState = getPasswordFieldState(password, 'signUp', showPasswordMessages)
   const confirmError =
@@ -51,14 +61,16 @@ export function PaperTradingRegisterCard() {
   const runValidation = (): boolean => {
     setAttemptedSubmit(true)
     setNameTouched(true)
+    setUsernameTouched(true)
     setEmailTouched(true)
     setPasswordTouched(true)
     setConfirmTouched(true)
     const n = validateDisplayName(name)
+    const u = validateUsernameOptional(username)
     const e = validateEmailValue(email)
     const p = validatePasswordSignUp(password)
     const c = validatePasswordConfirm(password, confirmPassword)
-    return !n && !e && !p && !c
+    return !n && !u && !e && !p && !c
   }
 
   const handleCreateAccount = async () => {
@@ -68,7 +80,7 @@ export function PaperTradingRegisterCard() {
 
     setSubmitting(true)
     try {
-      await signUp(email, password, name.trim())
+      await signUp(email, password, name.trim(), username.trim() || undefined)
       setAttemptedSubmit(false)
     } catch (err) {
       setFormError(friendlyFirebaseAuthMessage(err))
@@ -90,7 +102,8 @@ export function PaperTradingRegisterCard() {
   return (
     <div className="max-w-md mx-auto rounded-xl border bg-card p-6 space-y-5 shadow-sm">
       <p className="text-sm text-center text-muted-foreground">
-        To create your InvestEd account, enter your name, email and password.
+        Create your account with your name and email. Add an optional username for leaderboards, or we assign a
+        unique account number.
       </p>
       <div className="space-y-3">
         <div>
@@ -120,6 +133,36 @@ export function PaperTradingRegisterCard() {
               className={`mt-1 text-sm ${nameError ? 'text-red-700' : nameOk ? 'text-emerald-700' : 'text-muted-foreground'}`}
             >
               {nameError ?? (nameOk ? 'Looks good.' : '\u00a0')}
+            </p>
+          )}
+        </div>
+        <div>
+          <label htmlFor="reg-username" className="block text-sm font-medium mb-1">
+            Username <span className="text-muted-foreground font-normal">(optional)</span>
+          </label>
+          <input
+            id="reg-username"
+            type="text"
+            autoComplete="username"
+            value={username}
+            aria-invalid={usernameError ? true : undefined}
+            aria-describedby={showUsernameMessages ? 'reg-username-help' : undefined}
+            onBlur={() => setUsernameTouched(true)}
+            onChange={(e) => {
+              setUsername(e.target.value)
+              setFormError(null)
+              clearError()
+            }}
+            className={`w-full rounded-md border px-3 py-2 text-sm ${
+              usernameError ? 'border-red-400 ring-1 ring-red-200' : ''
+            }`}
+          />
+          {showUsernameMessages && (
+            <p
+              id="reg-username-help"
+              className={`mt-1 text-sm ${usernameError ? 'text-red-700' : 'text-muted-foreground'}`}
+            >
+              {usernameError ?? (username.trim() ? 'Shown on leaderboards instead of your account number.' : '\u00a0')}
             </p>
           )}
         </div>

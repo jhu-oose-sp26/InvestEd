@@ -1,9 +1,38 @@
+import { randomBytes } from 'node:crypto'
 import { getAuth } from 'firebase-admin/auth'
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import type { User } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getFirebaseAdminApp } from '@/lib/firebase-admin'
+
+export type FirebaseUserLinkOptions = {
+  /** Applied only when creating a new user or linking an email-only row; ignored for returning sessions. */
+  requestedUsername?: string | null
+}
+
+/** Parse optional signup username; throws `USERNAME_INVALID` if present but malformed. */
+export function normalizeSignupUsername(raw: unknown): string | null {
+  if (raw == null || raw === '') return null
+  if (typeof raw !== 'string') throw new Error('USERNAME_INVALID')
+  const s = raw.trim().toLowerCase()
+  if (!s) return null
+  if (s.length < 3 || s.length > 20) throw new Error('USERNAME_INVALID')
+  if (!/^[a-z0-9_]+$/.test(s)) throw new Error('USERNAME_INVALID')
+  return s
+}
+
+async function allocateAccountNumber(): Promise<string> {
+  for (let i = 0; i < 12; i++) {
+    const candidate = `IED-${randomBytes(5).toString('hex').toUpperCase()}`
+    const taken = await prisma.user.findUnique({
+      where: { accountNumber: candidate },
+      select: { id: true },
+    })
+    if (!taken) return candidate
+  }
+  throw new Error('ACCOUNT_NUMBER_ALLOC_FAILED')
+}
 
 /** HttpOnly session cookie — use with POST /api/auth/session after client Firebase sign-in */
 export const SESSION_COOKIE_NAME = 'invested_session'
@@ -60,6 +89,21 @@ async function ensureEmail(uid: string, emailFromToken: string | undefined): Pro
   throw new Error('NO_EMAIL')
 }
 
+/** True if this UID is not a Firebase user (deleted / different project). */
+async function isFirebaseUserMissing(uid: string): Promise<boolean> {
+  getFirebaseAdminApp()
+  const auth = getAuth()
+  try {
+    await auth.getUser(uid)
+    return false
+  } catch (e: unknown) {
+    const o = e && typeof e === 'object' ? (e as { code?: string; errorInfo?: { code?: string } }) : null
+    const code = o?.code ?? o?.errorInfo?.code ?? ''
+    if (code === 'auth/user-not-found') return true
+    throw e
+  }
+}
+
 /**
  * Links or creates a Prisma user for this Firebase account.
  * If an existing row has the same email but no firebaseUid, links it.
@@ -67,10 +111,17 @@ async function ensureEmail(uid: string, emailFromToken: string | undefined): Pro
 export async function getOrCreateUserFromFirebase(
   uid: string,
   email: string | undefined,
-  nameFromToken?: string | null
+  nameFromToken?: string | null,
+  options?: FirebaseUserLinkOptions
 ): Promise<User> {
   const emailNorm = await ensureEmail(uid, email)
   const nameNorm = nameFromToken?.trim() || null
+  let usernameNorm: string | null = null
+  try {
+    usernameNorm = normalizeSignupUsername(options?.requestedUsername ?? null)
+  } catch {
+    throw new Error('USERNAME_INVALID')
+  }
 
   const byUid = await prisma.user.findUnique({ where: { firebaseUid: uid } })
   if (byUid) {
@@ -99,15 +150,38 @@ export async function getOrCreateUserFromFirebase(
   const byEmail = await prisma.user.findUnique({ where: { email: emailNorm } })
   if (byEmail) {
     if (byEmail.firebaseUid && byEmail.firebaseUid !== uid) {
-      throw new Error('ACCOUNT_CONFLICT')
+      const oldGone = await isFirebaseUserMissing(byEmail.firebaseUid)
+      if (!oldGone) {
+        throw new Error('ACCOUNT_CONFLICT')
+      }
+      // DB still points at a deleted Firebase user — link this row to the current account.
+    }
+    const data: import('@prisma/client').Prisma.UserUpdateInput = { firebaseUid: uid }
+    if (nameNorm && !byEmail.name) data.name = nameNorm
+    if (!byEmail.accountNumber) {
+      data.accountNumber = await allocateAccountNumber()
+    }
+    if (usernameNorm && !byEmail.username) {
+      const taken = await prisma.user.findFirst({
+        where: { username: usernameNorm, NOT: { id: byEmail.id } },
+        select: { id: true },
+      })
+      if (taken) throw new Error('USERNAME_TAKEN')
+      data.username = usernameNorm
     }
     return prisma.user.update({
       where: { id: byEmail.id },
-      data: {
-        firebaseUid: uid,
-        ...(nameNorm && !byEmail.name ? { name: nameNorm } : {}),
-      },
+      data,
     })
+  }
+
+  const accountNumber = await allocateAccountNumber()
+  if (usernameNorm) {
+    const taken = await prisma.user.findUnique({
+      where: { username: usernameNorm },
+      select: { id: true },
+    })
+    if (taken) throw new Error('USERNAME_TAKEN')
   }
 
   return prisma.user.create({
@@ -115,6 +189,8 @@ export async function getOrCreateUserFromFirebase(
       firebaseUid: uid,
       email: emailNorm,
       name: nameNorm,
+      accountNumber,
+      username: usernameNorm,
     },
   })
 }
