@@ -7,13 +7,15 @@ async function main() {
     where: { email: 'test@example.com' },
     update: {
       id: 'temp-user-id',
-      name: 'Temp User'
+      name: 'Temp User',
+      accountNumber: 'IED-TEMP-USER',
     },
     create: {
       id: 'temp-user-id',
       email: 'test@example.com',
-      name: 'Temp User'
-    }
+      name: 'Temp User',
+      accountNumber: 'IED-TEMP-USER',
+    },
   })
 
   const portfolio = await prisma.portfolio.upsert({

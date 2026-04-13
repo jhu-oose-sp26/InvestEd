@@ -13,6 +13,10 @@ export const runtime = 'nodejs'
 
 const postBody = z.object({
   idToken: z.string().min(1, 'idToken is required'),
+  username: z
+    .string()
+    .optional()
+    .transform((v) => (typeof v !== 'string' || v.trim() === '' ? undefined : v.trim())),
 })
 
 /**
@@ -30,7 +34,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { idToken } = parsed.data
+    const { idToken, username: usernameRaw } = parsed.data
     getFirebaseAdminApp()
     const auth = getAuth()
     const decoded = await auth.verifyIdToken(idToken)
@@ -41,7 +45,9 @@ export async function POST(request: NextRequest) {
     }
     let user
     try {
-      user = await getOrCreateUserFromFirebase(decoded.uid, decoded.email, nameForDb)
+      user = await getOrCreateUserFromFirebase(decoded.uid, decoded.email, nameForDb, {
+        requestedUsername: usernameRaw,
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       if (msg === 'EMAIL_CONFLICT' || msg === 'ACCOUNT_CONFLICT') {
@@ -56,6 +62,15 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+      if (msg === 'USERNAME_INVALID') {
+        return NextResponse.json(
+          { error: 'Username must be 3–20 characters: lowercase letters, numbers, underscores only.' },
+          { status: 400 }
+        )
+      }
+      if (msg === 'USERNAME_TAKEN') {
+        return NextResponse.json({ error: 'That username is already taken.' }, { status: 409 })
+      }
       throw e
     }
     const sessionCookie = await createSessionCookieFromIdToken(idToken)
@@ -65,6 +80,8 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
+        username: user.username,
+        accountNumber: user.accountNumber,
       },
     })
     res.cookies.set(SESSION_COOKIE_NAME, sessionCookie, sessionCookieOptions())

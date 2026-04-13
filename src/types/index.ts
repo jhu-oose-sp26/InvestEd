@@ -10,5 +10,17 @@ export type {
   ReportMatchupResponse,
   ReportOptionsResponse,
 } from './report-matchup'
-export type { QuizQuestion, QuizQuestionsResponse, QuizCompleteResponse } from './quiz'
-export type { PlaceLimitOrderInput, LimitOrderResult, OrderBookEntry, OrderBookSnapshot, CreateMarketInput, MarketResult } from './limit-order'
+export type {
+  QuizQuestion,
+  QuizQuestionsResponse,
+  QuizCompleteResponse,
+  StreakLeaderboardEntry,
+} from './quiz'
+export type {
+  PlaceLimitOrderInput,
+  LimitOrderResult,
+  OrderBookEntry,
+  OrderBookSnapshot,
+  CreateMarketInput,
+  MarketResult,
+} from './limit-order'

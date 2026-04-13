@@ -12,19 +12,24 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) return auth.response
 
     const { user } = auth
-    const [portfolios, quizStreak] = await Promise.all([
-      prisma.portfolio.findMany({
-        where: { userId: user.id },
-        select: { id: true, name: true, cashBalance: true },
-        orderBy: { createdAt: 'asc' },
-      }),
-      getQuizStreakSummary(user.id),
-    ])
+    const portfolios = await prisma.portfolio.findMany({
+      where: { userId: user.id },
+      select: { id: true, name: true, cashBalance: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    let quizStreak = { currentStreak: 0, longestStreak: 0 }
+    try {
+      quizStreak = await getQuizStreakSummary(user.id)
+    } catch (e) {
+      console.error('GET /api/auth/me: quiz streak unavailable (DB migration or Prisma client?)', e)
+    }
     return NextResponse.json({
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
+        username: user.username,
+        accountNumber: user.accountNumber,
         firebaseUid: user.firebaseUid,
         createdAt: user.createdAt.toISOString(),
       },
