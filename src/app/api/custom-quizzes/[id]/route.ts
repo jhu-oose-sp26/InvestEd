@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { httpErrorBody, httpErrorResponse } from '@/lib/api/httpErrors'
+import { requireAuth } from '@/lib/auth/server'
 
-const userId = 'temp-user-id'
-
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+
     const { id } = await params
     const quiz = await prisma.customQuiz.findUnique({
       where: { id },
@@ -26,6 +29,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+
     const { id } = await params
     const quiz = await prisma.customQuiz.findUnique({ where: { id }, include: { _count: { select: { questions: true } } } })
 
@@ -64,8 +71,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+    const userId = auth.user.id
+
     const { id } = await params
     const quiz = await prisma.customQuiz.findUnique({ where: { id } })
 
