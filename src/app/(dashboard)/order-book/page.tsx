@@ -6,6 +6,7 @@ import { LimitOrderForm } from "@/components/LimitOrderForm"
 import { OpenOrders } from "@/components/OpenOrders"
 import { useOrderBook } from "@/hooks/useOrderBook"
 import { useLimitOrders } from "@/hooks/useLimitOrders"
+import { usePaperTradingAuth } from "@/contexts/PaperTradingAuthContext"
 
 function ResolveMarket({ marketId, onResolved }: { marketId: string; onResolved: () => void }) {
   const [resolving, setResolving] = useState(false)
@@ -52,6 +53,7 @@ function ResolveMarket({ marketId, onResolved }: { marketId: string; onResolved:
 
 interface Market {
   id: string
+  creatorId: string
   title: string
   description: string | null
   resolutionDate: string
@@ -61,11 +63,13 @@ interface Market {
 }
 
 export default function OrderBookPage() {
+  const { user } = usePaperTradingAuth()
   const [markets, setMarkets] = useState<Market[]>([])
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
   const [loading, setLoading] = useState(true)
   const { orderBook, loading: obLoading, refetch: refetchOrderBook } = useOrderBook(selectedMarket?.id ?? "")
   const { orders, refetch: refetchOrders } = useLimitOrders()
+  const isCreator = !!(user && selectedMarket && selectedMarket.creatorId === user.id)
 
   const refetchAll = useCallback(() => {
     refetchOrderBook()
@@ -207,7 +211,9 @@ export default function OrderBookPage() {
             </div>
             <div className="space-y-4">
               <LimitOrderForm marketId={selectedMarket.id} onOrderPlaced={refetchAll} />
-              <ResolveMarket marketId={selectedMarket.id} onResolved={() => { fetchMarkets(); refetchAll() }} />
+              {isCreator && (
+                <ResolveMarket marketId={selectedMarket.id} onResolved={() => { fetchMarkets(); refetchAll() }} />
+              )}
             </div>
           </div>
         </>
