@@ -22,13 +22,18 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const auth = await requireAuth(request)
+    if (!auth.ok) return auth.response
+
     const { marketId, outcome } = await request.json()
     if (typeof marketId !== 'string' || typeof outcome !== 'boolean') {
       return NextResponse.json({ error: 'marketId (string) and outcome (boolean) required' }, { status: 400 })
     }
-    const result = await marketService.resolveMarket(marketId, outcome)
+    const result = await marketService.resolveMarket(marketId, outcome, auth.user.id)
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 })
+      const status = result.error?.startsWith('FORBIDDEN:') ? 403 : 400
+      const error = result.error?.replace(/^FORBIDDEN:\s*/, '') ?? 'Failed to resolve'
+      return NextResponse.json({ error }, { status })
     }
     return NextResponse.json(result)
   } catch {

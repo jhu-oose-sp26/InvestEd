@@ -33,10 +33,11 @@ export class MarketService {
     })
   }
 
-  async resolveMarket(marketId: string, outcome: boolean): Promise<MarketResult> {
+  async resolveMarket(marketId: string, outcome: boolean, callerId: string): Promise<MarketResult> {
     try {
       await prisma.$transaction(async (tx: Tx) => {
         const market = await tx.market.findUniqueOrThrow({ where: { id: marketId } })
+        if (market.creatorId !== callerId) throw new Error('FORBIDDEN: only the market creator can resolve this market')
         if (market.status !== 'OPEN') throw new Error('Market is not open')
 
         // Cancel all remaining open orders and refund reserved cash to portfolio
