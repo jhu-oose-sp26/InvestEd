@@ -3,6 +3,7 @@ import type { PrismaClient } from '@prisma/client'
 import { Decimal } from '@prisma/client/runtime/library'
 import { z } from 'zod'
 import type { PlaceLimitOrderInput, LimitOrderResult } from '@/types'
+import { computeOrderReservation } from './orderPricing'
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
 
@@ -27,11 +28,7 @@ export class LimitOrderService {
         const market = await tx.market.findUniqueOrThrow({ where: { id: marketId } })
         if (market.status !== 'OPEN') throw new Error('Market is not open')
 
-        // YES buyers pay limitPrice per share.
-        // NO buyers post (1 - limitPrice) as collateral — their max loss if YES wins.
-        const reserved = side === 'NO'
-          ? new Decimal(1).minus(limitPrice).times(quantity)
-          : new Decimal(limitPrice).times(quantity)
+        const reserved = computeOrderReservation(side, limitPrice, quantity)
         await this.reserveCash(tx, userId, reserved)
 
         const order = await tx.limitOrder.create({
@@ -52,10 +49,7 @@ export class LimitOrderService {
         if (order.userId !== userId) throw new Error('Not authorized')
         if (order.status !== 'OPEN') throw new Error('Order is not open')
 
-        // Refund the reservation (mirrors placeOrder reservation logic)
-        const refund = order.side === 'NO'
-          ? new Decimal(1).minus(order.limitPrice).times(order.quantity)
-          : new Decimal(order.limitPrice).times(order.quantity)
+        const refund = computeOrderReservation(order.side, order.limitPrice, order.quantity)
         await this.releaseCash(tx, userId, refund)
         await tx.limitOrder.update({ where: { id: orderId }, data: { status: 'CANCELLED' } })
       })

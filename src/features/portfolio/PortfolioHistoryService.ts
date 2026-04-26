@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import type { Decimal } from '@prisma/client/runtime/library'
 import { portfolioService } from './PortfolioService'
+import { computeOrderReservationNumber, type OrderSide } from '@/features/trading/orderPricing'
 
 export type PortfolioHistoryPoint = { at: string; value: number }
 
@@ -58,11 +59,6 @@ async function markToMarket(cash: number, positions: PositionState, at: Date): P
   )
 
   return cash + positionValues.reduce((sum, v) => sum + v, 0)
-}
-
-/** Cash reserved when a non-cancelled limit order was placed. */
-function reservationAmount(side: string, limitPrice: number, quantity: number): number {
-  return side === 'NO' ? (1 - limitPrice) * quantity : limitPrice * quantity
 }
 
 /**
@@ -152,7 +148,7 @@ export async function getPortfolioValueHistory(portfolioId: string): Promise<Por
   let limitOutflow = 0
   for (const o of limitOrders) {
     if (o.status !== 'OPEN') continue
-    limitOutflow += reservationAmount(o.side, Number(o.limitPrice), o.quantity)
+    limitOutflow += computeOrderReservationNumber(o.side as OrderSide, Number(o.limitPrice), o.quantity)
   }
 
   const initialCash = portfolio.cashBalance.toNumber() + stockBuySum - stockSellSum + limitOutflow
@@ -192,7 +188,7 @@ export async function getPortfolioValueHistory(portfolioId: string): Promise<Por
     if (event.kind === 'trade') {
       cash = applyTrade(cash, stockPositions, event.trade)
     } else if (event.kind === 'limit_placed') {
-      cash -= reservationAmount(event.order.side, Number(event.order.limitPrice), event.order.quantity)
+      cash -= computeOrderReservationNumber(event.order.side as OrderSide, Number(event.order.limitPrice), event.order.quantity)
     } else {
       const o = event.order
       const pos = predShares.get(o.marketId) ?? { yes: 0, no: 0 }
