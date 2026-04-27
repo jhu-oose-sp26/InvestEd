@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Get last traded price per market for current valuation
     const lastFills = await prisma.limitOrder.findMany({
-      where: { marketId: { in: marketIds }, side: 'NO', status: 'FILLED' },
+      where: { marketId: { in: marketIds }, status: 'FILLED' },
       orderBy: { filledAt: 'desc' },
       distinct: ['marketId'],
       select: { marketId: true, limitPrice: true },
