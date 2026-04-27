@@ -23,7 +23,7 @@ export class OrderBookService {
     return {
       marketId,
       yesBids: toEntries(yesMap).sort((a, b) => b.price - a.price),
-      noBids: toEntries(noMap).sort((a, b) => b.price - a.price),
+      noBids: toEntries(noMap).sort((a, b) => a.price - b.price),
     }
   }
 }

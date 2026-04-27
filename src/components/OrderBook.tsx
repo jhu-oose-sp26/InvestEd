@@ -38,7 +38,7 @@ export function OrderBook({ orderBook, loading }: Props) {
       <h3 className="text-sm font-semibold mb-3">Order Book</h3>
       <div className="grid grid-cols-2 gap-4 text-xs">
         <PriceLevel entries={orderBook.yesBids} color="emerald" label="YES Bids" />
-        <PriceLevel entries={orderBook.noBids} color="red" label="NO Bids" />
+        <PriceLevel entries={orderBook.noBids} color="red" label="YES Asks" />
       </div>
     </div>
   )

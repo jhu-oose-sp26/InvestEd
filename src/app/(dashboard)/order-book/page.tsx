@@ -443,7 +443,12 @@ export default function OrderBookPage() {
               <OrderBook orderBook={orderBook} loading={obLoading} />
             </div>
             <div className="space-y-4">
-              <LimitOrderForm marketId={selectedMarket.id} onOrderPlaced={refetchAll} />
+              <LimitOrderForm 
+                marketId={selectedMarket.id} 
+                onOrderPlaced={refetchAll} 
+                bestYesAsk={orderBook?.noBids?.length ? Math.min(...orderBook.noBids.map(b => b.price)) : null}
+                bestNoAsk={orderBook?.yesBids?.length ? Math.min(...orderBook.yesBids.map(b => 1 - b.price)) : null}
+              />
               {user && user.id === selectedMarket.creatorId && (
                 <ResolveMarket marketId={selectedMarket.id} onResolved={() => { fetchMarkets(); refetchAll() }} />
               )}

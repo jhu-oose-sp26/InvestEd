@@ -5,9 +5,11 @@ import { useState } from 'react'
 interface Props {
   marketId: string
   onOrderPlaced?: () => void
+  bestYesAsk?: number | null
+  bestNoAsk?: number | null
 }
 
-export function LimitOrderForm({ marketId, onOrderPlaced }: Props) {
+export function LimitOrderForm({ marketId, onOrderPlaced, bestYesAsk, bestNoAsk }: Props) {
   const [side, setSide] = useState<'YES' | 'NO'>('YES')
   const [orderType, setOrderType] = useState<'LIMIT' | 'IOC'>('LIMIT')
   const [limitPrice, setLimitPrice] = useState('')
@@ -23,7 +25,7 @@ export function LimitOrderForm({ marketId, onOrderPlaced }: Props) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ marketId, side, orderType, limitPrice: parseFloat(limitPrice), quantity: parseInt(quantity) }),
+        body: JSON.stringify({ marketId, side, orderType, limitPrice: side === 'YES' ? price : 1 - price, quantity: parseInt(quantity) }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -42,8 +44,9 @@ export function LimitOrderForm({ marketId, onOrderPlaced }: Props) {
     }
   }
 
-  const price = parseFloat(limitPrice)
-  const valid = price > 0 && price <= 1 && quantity && parseInt(quantity) > 0
+  const isIOC = orderType === 'IOC'
+  const price = isIOC ? 0.99 : parseFloat(limitPrice) / 100
+  const valid = (isIOC ? true : (price > 0 && price <= 1)) && quantity && parseInt(quantity) > 0
 
   return (
     <div className="border rounded-xl p-4 space-y-3">
@@ -53,11 +56,11 @@ export function LimitOrderForm({ marketId, onOrderPlaced }: Props) {
       <div className="flex gap-2">
         <button onClick={() => setSide('YES')}
           className={`flex-1 py-1.5 rounded text-sm font-bold ${side === 'YES' ? 'bg-emerald-600 text-white' : 'border'}`}>
-          Buy YES
+          Buy YES {bestYesAsk != null ? `(${Math.round(bestYesAsk * 100)}¢)` : ''}
         </button>
         <button onClick={() => setSide('NO')}
           className={`flex-1 py-1.5 rounded text-sm font-bold ${side === 'NO' ? 'bg-red-600 text-white' : 'border'}`}>
-          Buy NO
+          Buy NO {bestNoAsk != null ? `(${Math.round(bestNoAsk * 100)}¢)` : ''}
         </button>
       </div>
 
@@ -76,14 +79,19 @@ export function LimitOrderForm({ marketId, onOrderPlaced }: Props) {
         <p className="text-xs text-muted-foreground">Fills immediately if a matching order exists, otherwise cancelled.</p>
       )}
 
-      <div>
-        <label className="text-xs text-muted-foreground">
-          {side === 'YES' ? 'Max price to pay (0.01 – 1.00)' : 'Min price to accept for YES (0.01 – 1.00)'}
-        </label>
-        <input type="number" placeholder="e.g. 0.65" value={limitPrice}
-          onChange={e => setLimitPrice(e.target.value)}
-          className="w-full px-3 py-2 border rounded text-sm" min="0.01" max="1" step="0.01" />
-      </div>
+      {!isIOC && (
+        <div>
+          <label className="text-xs text-muted-foreground">
+            Max price to pay per share (1 – 100¢)
+          </label>
+          <div className="relative">
+            <input type="number" placeholder="e.g. 65" value={limitPrice}
+              onChange={e => setLimitPrice(e.target.value)}
+              className="w-full pl-3 pr-8 py-2 border rounded text-sm" min="1" max="100" step="1" />
+            <span className="absolute right-3 top-2.5 text-muted-foreground text-sm">¢</span>
+          </div>
+        </div>
+      )}
       <div>
         <label className="text-xs text-muted-foreground">Quantity (shares)</label>
         <input type="number" placeholder="e.g. 10" value={quantity}
@@ -93,18 +101,16 @@ export function LimitOrderForm({ marketId, onOrderPlaced }: Props) {
 
       {valid && (
         <p className="text-xs text-muted-foreground">
-          {side === 'YES'
-            ? `Cost: $${(price * parseInt(quantity)).toFixed(2)}`
-            : `Collateral: $${((1 - price) * parseInt(quantity)).toFixed(2)} (max loss if YES wins)`}
+          {isIOC ? 'Max Cost' : 'Cost'}: ${(price * parseInt(quantity)).toFixed(2)}
         </p>
       )}
-      {limitPrice && (price <= 0 || price > 1) && (
-        <p className="text-xs text-red-600">Price must be between 0.01 and 1.00</p>
+      {!isIOC && limitPrice && (price <= 0 || price > 1) && (
+        <p className="text-xs text-red-600">Price must be between 1 and 100</p>
       )}
 
       <button onClick={handleSubmit} disabled={loading || !valid}
         className={`w-full py-2 rounded font-bold text-sm text-white disabled:bg-gray-300 disabled:cursor-not-allowed ${side === 'YES' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}>
-        {loading ? 'Placing...' : `Buy ${side} @ ${limitPrice || '—'}`}
+        {loading ? 'Placing...' : `Buy ${side} ${isIOC ? 'Immediately' : `@ ${limitPrice ? `${limitPrice}¢` : '—'}`}`}
       </button>
 
       {message && (
