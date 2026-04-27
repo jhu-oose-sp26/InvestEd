@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const enriched = positions.map(pos => {
       const lastPrice = lastPriceMap.get(pos.marketId) ?? 0.5
       const cost = costMap.get(pos.marketId) ?? { yesCost: 0, noCost: 0, totalYesBought: 0, totalNoBought: 0 }
-      
+
       // Calculate how many pairs were merged and refunded $1.00
       const mergedPairs = cost.totalYesBought - pos.yesQuantity
       const totalCost = (cost.yesCost + cost.noCost) - (mergedPairs * 1.0)
