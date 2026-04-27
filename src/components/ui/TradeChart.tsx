@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { createChart, ColorType, ISeriesApi, CandlestickData, Time } from "lightweight-charts"
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, Time } from "lightweight-charts"
 
 export interface HistoricalBar {
   t: string // ISO timestamp
@@ -29,7 +29,7 @@ function toLocalChartTime(utcSeconds: number): Time {
 export function TradeChart({ symbol, historicalBars, livePrice }: TradeChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null)
-  const chartRef = useRef<any>(null)
+  const chartRef = useRef<IChartApi | null>(null)
   // Tracks the accumulated OHLC for the current live candle so we don't lose high/low across ticks
   const liveCandleRef = useRef<{ intervalUnix: number; open: number; high: number; low: number; close: number } | null>(null)
 
