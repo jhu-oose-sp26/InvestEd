@@ -12,7 +12,10 @@ const PlaceLimitOrderSchema = z.object({
   marketId: z.string(),
   side: z.enum(['YES', 'NO']),
   orderType: z.enum(['LIMIT', 'IOC']).default('LIMIT'),
-  limitPrice: z.number().gt(0).lte(1),
+  limitPrice: z.number().gt(0).lte(1).refine(
+    n => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6,
+    "Price must be in whole cents"
+  ),
   quantity: z.number().int().positive(),
 })
 
@@ -162,17 +165,29 @@ export class LimitOrderService {
   }
 
   private async grantShares(tx: Tx, userId: string, marketId: string, side: 'YES' | 'NO', quantity: number) {
-    if (side === 'YES') {
-      await tx.marketPosition.upsert({
-        where: { userId_marketId: { userId, marketId } },
-        create: { userId, marketId, yesQuantity: quantity },
-        update: { yesQuantity: { increment: quantity } },
+    const position = await tx.marketPosition.findUnique({
+      where: { userId_marketId: { userId, marketId } }
+    })
+
+    let newYes = (position?.yesQuantity ?? 0) + (side === 'YES' ? quantity : 0);
+    let newNo = (position?.noQuantity ?? 0) + (side === 'NO' ? quantity : 0);
+
+    const matchedPairs = Math.min(newYes, newNo);
+
+    if (matchedPairs > 0) {
+      newYes -= matchedPairs;
+      newNo -= matchedPairs;
+      await this.releaseCash(tx, userId, new Decimal(matchedPairs));
+    }
+
+    if (!position) {
+      await tx.marketPosition.create({
+        data: { userId, marketId, yesQuantity: newYes, noQuantity: newNo }
       })
     } else {
-      await tx.marketPosition.upsert({
-        where: { userId_marketId: { userId, marketId } },
-        create: { userId, marketId, noQuantity: quantity },
-        update: { noQuantity: { increment: quantity } },
+      await tx.marketPosition.update({
+        where: { id: position.id },
+        data: { yesQuantity: newYes, noQuantity: newNo }
       })
     }
   }

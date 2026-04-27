@@ -21,17 +21,17 @@ export async function GET(request: NextRequest) {
       select: { marketId: true, side: true, limitPrice: true, quantity: true },
     })
 
-    // Build cost basis map: { marketId: { yesCost, noCost } }
-    const costMap = new Map<string, { yesCost: number; noCost: number }>()
+    // Build cost map and track total bought shares to infer merged pairs
+    const costMap = new Map<string, { yesCost: number; noCost: number; totalYesBought: number; totalNoBought: number }>()
     for (const order of filledOrders) {
-      const entry = costMap.get(order.marketId) ?? { yesCost: 0, noCost: 0 }
+      const entry = costMap.get(order.marketId) ?? { yesCost: 0, noCost: 0, totalYesBought: 0, totalNoBought: 0 }
       const price = Number(order.limitPrice)
       if (order.side === 'YES') {
-        // YES buyers pay limitPrice per share (execution happens at ask, but they paid the ask or less)
         entry.yesCost += price * order.quantity
+        entry.totalYesBought += order.quantity
       } else {
-        // NO buyers pay (1 - limitPrice) per share
         entry.noCost += (1 - price) * order.quantity
+        entry.totalNoBought += order.quantity
       }
       costMap.set(order.marketId, entry)
     }
@@ -48,8 +48,11 @@ export async function GET(request: NextRequest) {
     // Enrich positions with cost, current value, and PnL
     const enriched = positions.map(pos => {
       const lastPrice = lastPriceMap.get(pos.marketId) ?? 0.5
-      const cost = costMap.get(pos.marketId) ?? { yesCost: 0, noCost: 0 }
-      const totalCost = cost.yesCost + cost.noCost
+      const cost = costMap.get(pos.marketId) ?? { yesCost: 0, noCost: 0, totalYesBought: 0, totalNoBought: 0 }
+      
+      // Calculate how many pairs were merged and refunded $1.00
+      const mergedPairs = cost.totalYesBought - pos.yesQuantity
+      const totalCost = (cost.yesCost + cost.noCost) - (mergedPairs * 1.0)
 
       let currentValue: number
       let pnl: number

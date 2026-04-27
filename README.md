@@ -384,6 +384,34 @@ python3 market_data_pipeline/build_report_matchup_data.py --database-url "$DATAB
 > **Custom Quizzes work without step 2–3.** Only the Daily Challenge and Report Matchup APIs require the quarterly data to be loaded.
 
 ---
+
+## Market Making Bot (Prediction Markets)
+
+InvestEd includes a built-in automated market maker (AMM) bot that provides liquidity to open prediction markets. It runs as a standalone daemon process and uses an **Order Book Imbalance (Microstructure)** strategy.
+
+### How the AMM Works
+- The bot constantly monitors the user-driven order book for open markets.
+- It calculates a `mid_price` based on the highest user bid and lowest user ask.
+- It then places its own bids and asks inside the user spread to provide a tighter, liquid market (e.g., if users are bidding 0.40 and asking 0.60, the bot might bid 0.45 and ask 0.55).
+- **Inventory Skew:** To prevent the bot from going bankrupt by taking only one side of the trades, it skews its prices based on its current inventory (net position). For example, if it accumulates too many NO shares, it shifts its entire spread upwards to encourage users to sell YES to it.
+
+### Running the Bot Locally
+
+To start the bot, simply run the following command from the root directory:
+
+```bash
+node run-bot.js
+```
+
+Or run it in a continuous loop using the provided argument:
+
+```bash
+node run-bot.js --loop
+```
+
+*(Note: Ensure your database is running and `DATABASE_URL` is set in your `.env` before starting the bot).*
+
+---
 ### Market Data Provider (`MarketDataProvider.ts`)
 
 Reads latest stored prices per symbol from Postgres (`market_prices`).
