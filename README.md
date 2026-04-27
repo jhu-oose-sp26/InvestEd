@@ -164,6 +164,27 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Automated Market Maker (AMM) Bot
+
+The AMM Bot ensures that all open prediction markets have consistent liquidity and reasonable bid-ask spreads, allowing users to trade even when there are no other human participants on the other side of the order book.
+
+#### What It Does
+
+1. **Continuous Quoting**: The bot scans all `OPEN` prediction markets and automatically places paired `YES` (Bid) and `NO` (Ask) limit orders of 100 shares each.
+2. **Spread Tightening**: It analyzes existing user orders in the book. If there is a wide gap between user bids and asks, the bot will step in and quote a tighter spread (providing a minimum 20% price improvement) to encourage trading.
+3. **Inventory Risk Management (Skewing)**: The bot tracks its own net inventory. If it buys too many `YES` shares (meaning users are selling `YES` heavily), it will mathematically "skew" its mid-price downwards to attract `NO` buyers and balance its risk. It uses a sensitivity factor where each net share shifts the quoted price by a fraction of a cent.
+4. **Boundary Enforcement**: The bot enforces a maximum price of `0.95` (95¢) and a minimum price of `0.05` (5¢), ensuring it never prices itself into an automatic loss and always respects the 1–100¢ boundary.
+
+#### How to Start the Bot
+
+The bot is written in TypeScript and can be executed using `tsx` (which is already configured in your project).
+
+##### Single Execution (One-time Pass)
+To run the bot through a single cycle where it assesses all markets, places new quotes, and then exits:
+```bash
+npx tsx bots/amm.ts
+
+
 ### Error codes (JSON)
 
 When something goes wrong, many handlers return JSON in this shape:
