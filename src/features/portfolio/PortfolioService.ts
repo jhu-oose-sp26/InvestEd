@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getMarketDataProvider } from '../market-data/MarketDataProvider'
+import { getLiveQuotes } from '../market-data/finnhub/finnhubLiveQuoteService'
 import type { PositionValue, PortfolioSummary } from '@/types'
 import { computePositionValuesFromPriceMap } from './portfolioValuation'
 
@@ -68,10 +68,9 @@ export class PortfolioService {
       }
     }
 
-    // Fetch current prices for all symbols
+    // Fetch current prices for all symbols using Finnhub API
     const symbols = positions.map((p: { symbol: string }) => p.symbol)
-    const marketDataProvider = getMarketDataProvider()
-    const quotes = await marketDataProvider.getQuotes(symbols)
+    const quotes = await getLiveQuotes(symbols, process.env.FINNHUB_API_KEY)
 
     // Create a map for quick lookup
     const priceMap = new Map(quotes.map((q) => [q.symbol, q.price]))
