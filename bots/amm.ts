@@ -1,238 +1,320 @@
 import { prisma } from '../src/lib/prisma'
 import { limitOrderService } from '../src/features/trading/LimitOrderService'
-import { Decimal } from '@prisma/client/runtime/library'
+import axios from 'axios'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 // Configuration
 const BOT_EMAIL = 'bot@invested.com'
-const BOT_USERNAME = 'AMMBot'
-const BOT_NAME = 'Automated Market Maker'
 const INITIAL_CASH = 10000000 // $10M
 
 const DEFAULT_MID = 0.50
-const DEFAULT_SPREAD = 0.10 // 10 cents default spread if book is empty
-const MIN_SPREAD = 0.04 // Bot won't squeeze spread tighter than this
-const SKEW_SENSITIVITY = 0.00005 // Each net share shifts price by $0.00005
-const ORDER_SIZE = 100 // Shares to quote on each side
-const MAX_PRICE = 0.95
-const MIN_PRICE = 0.05
+const DEFAULT_SPREAD = 0.10
+const ORDER_SIZE = 100
+const MAX_PRICE = 0.99
+const MIN_PRICE = 0.01
 
-/**
- * Ensure the bot user exists and has a portfolio with sufficient cash.
- */
-async function setupBotUser() {
-  let bot = await prisma.user.findUnique({
-    where: { email: BOT_EMAIL }
-  })
+interface Market {
+  id: string
+  title: string
+}
 
-  if (!bot) {
-    console.log('Creating AMM bot user...')
-    bot = await prisma.user.create({
-      data: {
-        email: BOT_EMAIL,
-        username: BOT_USERNAME,
-        name: BOT_NAME,
-        accountNumber: `BOT-${Date.now()}`,
-        portfolios: {
-          create: {
-            name: 'Market Maker Portfolio',
-            cashBalance: INITIAL_CASH
-          }
-        }
+interface Order {
+  id: string
+  side: string
+  limitPrice: number | string
+  status: string
+  userId: string
+  quantity: number
+}
+
+interface BotClient {
+  setup(): Promise<void>
+  getOpenMarkets(): Promise<Market[]>
+  getOrderBook(marketId: string): Promise<{ bids: any[], asks: any[] }>
+  getBotPosition(marketId: string): Promise<{ yesQuantity: number, noQuantity: number }>
+  getBotOpenOrders(marketId: string): Promise<Order[]>
+  placeOrder(marketId: string, side: 'YES' | 'NO', price: number, quantity: number): Promise<void>
+  cancelOrder(orderId: string): Promise<void>
+  getLastFill(marketId: string): Promise<number | null>
+}
+
+let customPrismaClient: any = null
+
+class PrismaBotClient implements BotClient {
+  private botId: string = ''
+  private prismaClient: any
+
+  constructor(databaseUrl?: string) {
+    if (databaseUrl) {
+      if (!customPrismaClient) {
+        console.log('Bot connecting to PRODUCTION database...')
+        const { PrismaClient } = require('@prisma/client')
+        customPrismaClient = new PrismaClient({
+          datasources: {
+            db: {
+              url: databaseUrl,
+            },
+          },
+        })
       }
-    })
-    console.log(`Bot created with ID: ${bot.id}`)
-  } else {
-    // Ensure portfolio exists and has cash
-    const portfolio = await prisma.portfolio.findFirst({
-      where: { userId: bot.id }
-    })
-    if (!portfolio) {
-      await prisma.portfolio.create({
-        data: {
-          userId: bot.id,
-          name: 'Market Maker Portfolio',
-          cashBalance: INITIAL_CASH
-        }
-      })
-    } else if (Number(portfolio.cashBalance) < 10000) {
-      // Top up if low
-      await prisma.portfolio.update({
-        where: { id: portfolio.id },
-        data: { cashBalance: INITIAL_CASH }
-      })
+      this.prismaClient = customPrismaClient
+    } else {
+      this.prismaClient = prisma
     }
   }
 
-  return bot
+  async setup() {
+    let bot = await this.prismaClient.user.findUnique({ where: { email: BOT_EMAIL } })
+    if (!bot) {
+      bot = await this.prismaClient.user.create({
+        data: {
+          email: BOT_EMAIL,
+          username: 'AMMBot',
+          name: 'Automated Market Maker',
+          accountNumber: `BOT-${Date.now()}`,
+          portfolios: { create: { name: 'Market Maker Portfolio', cashBalance: INITIAL_CASH } }
+        }
+      })
+    }
+    this.botId = bot.id
+  }
+
+  async getOpenMarkets() {
+    return this.prismaClient.market.findMany({ where: { status: 'OPEN' }, select: { id: true, title: true } })
+  }
+
+  async getOrderBook(marketId: string) {
+    const orders = await this.prismaClient.limitOrder.findMany({
+      where: { marketId, status: 'OPEN', userId: { not: this.botId } }
+    })
+    return {
+      bids: orders.filter((o: any) => o.side === 'YES').map((o: any) => ({ limitPrice: Number(o.limitPrice) })),
+      asks: orders.filter((o: any) => o.side === 'NO').map((o: any) => ({ limitPrice: Number(o.limitPrice) }))
+    }
+  }
+
+  async getBotPosition(marketId: string) {
+    const pos = await this.prismaClient.marketPosition.findUnique({
+      where: { userId_marketId: { userId: this.botId, marketId } }
+    })
+    return { yesQuantity: pos?.yesQuantity || 0, noQuantity: pos?.noQuantity || 0 }
+  }
+
+  async getBotOpenOrders(marketId: string) {
+    const orders = await this.prismaClient.limitOrder.findMany({
+      where: { userId: this.botId, marketId, status: 'OPEN' }
+    })
+    return orders.map((o: any) => ({ ...o, limitPrice: Number(o.limitPrice) }))
+  }
+
+  async placeOrder(marketId: string, side: 'YES' | 'NO', price: number, quantity: number) {
+    await this.prismaClient.limitOrder.create({
+      data: {
+        userId: this.botId,
+        marketId,
+        side,
+        orderType: 'LIMIT',
+        limitPrice: price,
+        quantity,
+        status: 'OPEN'
+      }
+    })
+  }
+
+  async cancelOrder(orderId: string) {
+    await this.prismaClient.limitOrder.update({
+      where: { id: orderId },
+      data: { status: 'CANCELLED' }
+    })
+  }
+
+  async getLastFill(marketId: string) {
+    const lastFill = await this.prismaClient.limitOrder.findFirst({
+      where: { 
+        marketId, 
+        status: 'FILLED',
+        NOT: [
+          { limitPrice: 0.99 },
+          { limitPrice: 0.01 }
+        ]
+      },
+      orderBy: { filledAt: 'desc' }
+    })
+    return lastFill ? Number(lastFill.limitPrice) : null
+  }
 }
 
-/**
- * Format price to 2 decimal places safely (whole cents).
- */
+class HttpBotClient implements BotClient {
+  private baseUrl: string
+  private secret: string
+
+  constructor(baseUrl: string, secret: string) {
+    this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    this.secret = secret
+  }
+
+  private get headers() {
+    return { Authorization: `Bearer ${this.secret}` }
+  }
+
+  async setup() {
+    console.log(`Bot addressing production at: ${this.baseUrl}`)
+  }
+
+  async getOpenMarkets() {
+    const res = await axios.get(`${this.baseUrl}/api/markets?status=OPEN`)
+    return res.data.markets
+  }
+
+  async getOrderBook(marketId: string) {
+    const res = await axios.get(`${this.baseUrl}/api/order-book?marketId=${marketId}`)
+    // Map yesBids/noBids to bids/asks and ensure price is mapped to limitPrice for compatibility
+    return {
+      bids: res.data.yesBids.map((b: any) => ({ limitPrice: b.price })),
+      asks: res.data.noBids.map((b: any) => ({ limitPrice: b.price }))
+    }
+  }
+
+  async getBotPosition(marketId: string) {
+    const res = await axios.get(`${this.baseUrl}/api/market-positions`, { headers: this.headers })
+    const pos = res.data.positions.find((p: any) => p.marketId === marketId)
+    return { yesQuantity: pos?.yesQuantity || 0, noQuantity: pos?.noQuantity || 0 }
+  }
+
+  async getBotOpenOrders(marketId: string) {
+    const res = await axios.get(`${this.baseUrl}/api/limit-orders`, { headers: this.headers })
+    return res.data.orders.filter((o: any) => o.marketId === marketId && o.status === 'OPEN')
+  }
+
+  async placeOrder(marketId: string, side: 'YES' | 'NO', price: number, quantity: number) {
+    await axios.post(`${this.baseUrl}/api/limit-orders`, {
+      marketId, side, orderType: 'LIMIT', limitPrice: price, quantity
+    }, { headers: this.headers })
+  }
+
+  async cancelOrder(orderId: string) {
+    await axios.delete(`${this.baseUrl}/api/limit-orders`, {
+      data: { orderId },
+      headers: this.headers
+    })
+  }
+
+  async getLastFill(marketId: string) {
+    const res = await axios.get(`${this.baseUrl}/api/order-book?marketId=${marketId}`)
+    // If the lastPrice from the API is a sweep price, we might need a better source,
+    // but for now, we'll just return it and let the bot logic handle it.
+    // Ideally, the order-book API itself should be filtered, but we are adjusting the bot only.
+    const price = res.data.lastPrice
+    if (price === 0.99 || price === 0.01) return null
+    return price || null
+  }
+}
+
 function formatPrice(p: number): number {
   return Math.max(0.01, Math.min(0.99, Math.round(p * 100) / 100))
 }
 
 export async function runMarketMaker() {
-  console.log('Starting Order Book Imbalance AMM cycle...')
-  const bot = await setupBotUser()
+  console.log('Starting AMM cycle...')
 
-  // Find all OPEN markets
-  const openMarkets = await prisma.market.findMany({
-    where: { status: 'OPEN' }
-  })
+  const productionUrl = process.env.PRODUCTION_URL
+  const prodDatabaseUrl = process.env.PROD_DATABASE_URL
+  const useProd = process.argv.includes('--prod')
+  const cronSecret = process.env.CRON_SECRET || ''
 
+  let client: BotClient
+  if (useProd && prodDatabaseUrl) {
+    client = new PrismaBotClient(prodDatabaseUrl)
+  } else if (productionUrl) {
+    client = new HttpBotClient(productionUrl, cronSecret)
+  } else {
+    client = new PrismaBotClient()
+  }
+
+  await client.setup()
+  const openMarkets = await client.getOpenMarkets()
   console.log(`Found ${openMarkets.length} open markets.`)
 
   for (const market of openMarkets) {
     try {
       console.log(`\nProcessing market: ${market.id} - ${market.title}`)
-      
-      // 1. Cancel existing bot orders to get clean state of user orders
-      const existingOrders = await prisma.limitOrder.findMany({
-        where: { userId: bot.id, marketId: market.id, status: 'OPEN' }
-      })
 
-      for (const order of existingOrders) {
-        await limitOrderService.cancelOrder(order.id, bot.id)
-      }
+      // 1. Fetch existing bot orders
+      const existingOrders = await client.getBotOpenOrders(market.id)
 
-      // 2. Fetch user order book
-      const userOrders = await prisma.limitOrder.findMany({
-        where: { 
-          marketId: market.id, 
-          status: 'OPEN',
-          userId: { not: bot.id }
-        }
-      })
-
-      const userBids = userOrders
-        .filter(o => o.side === 'YES')
-        .map(o => Number(o.limitPrice))
-        .sort((a, b) => b - a) // Highest bid first
-
-      const userAsks = userOrders
-        .filter(o => o.side === 'NO')
-        .map(o => Number(o.limitPrice))
-        .sort((a, b) => a - b) // Lowest ask first
+      // 2. Fetch order book
+      const book = await client.getOrderBook(market.id)
+      const userBids = book.bids.map((o: any) => Number(o.limitPrice)).sort((a: number, b: number) => b - a)
+      const userAsks = book.asks.map((o: any) => Number(o.limitPrice)).sort((a: number, b: number) => a - b)
 
       const highestUserBid = userBids.length > 0 ? userBids[0] : null
       const lowestUserAsk = userAsks.length > 0 ? userAsks[0] : null
 
-      console.log(`  User Book -> Best Bid: ${highestUserBid ?? 'None'}, Best Ask: ${lowestUserAsk ?? 'None'}`)
-
-      // 3. Determine base mid-price and spread
+      // 3. Mid-price and spread
       let baseMid = DEFAULT_MID
       let currentSpread = DEFAULT_SPREAD
 
-      const lastFill = await prisma.limitOrder.findFirst({
-        where: { marketId: market.id, status: 'FILLED' },
-        orderBy: { filledAt: 'desc' }
-      })
+      const lastFillPrice = await client.getLastFill(market.id)
+      if (lastFillPrice) baseMid = lastFillPrice
 
-      if (lastFill) {
-        baseMid = Number(lastFill.limitPrice)
-      }
+      // 4. Skew (Removed per request)
+      const { yesQuantity, noQuantity } = await client.getBotPosition(market.id)
 
-      if (highestUserBid !== null && lowestUserAsk !== null) {
-        // Both sides exist: tighten the user spread
-        const userMid = (highestUserBid + lowestUserAsk) / 2
-        baseMid = userMid
-        const userSpread = lowestUserAsk - highestUserBid
-        currentSpread = Math.max(MIN_SPREAD, userSpread * 0.8) // Provide 20% price improvement
-      } else if (highestUserBid !== null) {
-        // Only bids exist
-        // If the market has moved up past our last traded price, anchor to the new bid
-        if (baseMid <= highestUserBid) {
-          baseMid = Math.min(MAX_PRICE, highestUserBid + (DEFAULT_SPREAD / 2))
-        }
-      } else if (lowestUserAsk !== null) {
-        // Only asks exist
-        // If the market has moved down past our last traded price, anchor to the new ask
-        if (baseMid >= lowestUserAsk) {
-          baseMid = Math.max(MIN_PRICE, lowestUserAsk - (DEFAULT_SPREAD / 2))
-        }
-      }
+      let adjustedMid = baseMid
 
-      // 4. Fetch bot inventory to calculate skew
-      const position = await prisma.marketPosition.findUnique({
-        where: { userId_marketId: { userId: bot.id, marketId: market.id } }
-      })
-
-      const yesQty = position?.yesQuantity || 0
-      const noQty = position?.noQuantity || 0
-      const netInventory = yesQty - noQty // Long YES if positive, Long NO if negative
-
-      const skew = netInventory * SKEW_SENSITIVITY
-      let adjustedMid = baseMid - skew
-
-      // Constrain adjusted mid
       const minMid = MIN_PRICE + currentSpread / 2
       const maxMid = MAX_PRICE - currentSpread / 2
-      if (adjustedMid < minMid) adjustedMid = minMid
-      if (adjustedMid > maxMid) adjustedMid = maxMid
+      adjustedMid = Math.max(minMid, Math.min(maxMid, adjustedMid))
 
       const bidPrice = formatPrice(adjustedMid - (currentSpread / 2))
       const askPrice = formatPrice(adjustedMid + (currentSpread / 2))
 
-      console.log(`  Inventory -> YES: ${yesQty}, NO: ${noQty} (Net: ${netInventory}, Skew: ${skew.toFixed(4)})`)
-      console.log(`  Quoting   -> Mid: ${adjustedMid.toFixed(4)}, Bid: ${bidPrice}, Ask: ${askPrice}`)
+      console.log(`  Inventory -> YES: ${yesQuantity}, NO: ${noQuantity} (Ignored)`)
+      console.log(`  Quoting   -> Bid: ${bidPrice}, Ask: ${askPrice}`)
 
-      // 5. Place tightening orders
-      // BID
-      const bidResult = await limitOrderService.placeOrder({
-        userId: bot.id,
-        marketId: market.id,
-        side: 'YES',
-        orderType: 'LIMIT',
-        limitPrice: bidPrice,
-        quantity: ORDER_SIZE
-      })
+      // 5. Reconcile orders
+      let hasMatchingBid = false
+      let hasMatchingAsk = false
 
-      if (!bidResult.success) console.error(`  Failed to place BID: ${bidResult.error}`)
-      else console.log(`  Placed BID at ${bidPrice}`)
+      for (const order of existingOrders) {
+        if (order.side === 'YES' && order.limitPrice === bidPrice && order.quantity === ORDER_SIZE && !hasMatchingBid) {
+          hasMatchingBid = true
+        } else if (order.side === 'NO' && order.limitPrice === askPrice && order.quantity === ORDER_SIZE && !hasMatchingAsk) {
+          hasMatchingAsk = true
+        } else {
+          await client.cancelOrder(order.id)
+        }
+      }
 
-      // ASK
-      const askResult = await limitOrderService.placeOrder({
-        userId: bot.id,
-        marketId: market.id,
-        side: 'NO',
-        orderType: 'LIMIT',
-        limitPrice: askPrice,
-        quantity: ORDER_SIZE
-      })
+      if (!hasMatchingBid) {
+        await client.placeOrder(market.id, 'YES', bidPrice, ORDER_SIZE)
+        console.log(`  Placed BID at ${bidPrice}`)
+      } else {
+        console.log(`  Kept existing BID at ${bidPrice}`)
+      }
 
-      if (!askResult.success) console.error(`  Failed to place ASK: ${askResult.error}`)
-      else console.log(`  Placed ASK at ${askPrice}`)
-
-      // 6. Match orders in case our skew caused a cross with existing user orders
-      const filled = await limitOrderService.matchOrders(market.id)
-      if (filled > 0) {
-        console.log(`  Matched ${filled} shares immediately!`)
+      if (!hasMatchingAsk) {
+        await client.placeOrder(market.id, 'NO', askPrice, ORDER_SIZE)
+        console.log(`  Placed ASK at ${askPrice}`)
+      } else {
+        console.log(`  Kept existing ASK at ${askPrice}`)
       }
 
     } catch (e) {
       console.error(`Error processing market ${market.id}:`, e)
     }
   }
-
   console.log('AMM cycle complete.\n')
 }
 
-// If run directly
 if (require.main === module) {
   const loop = process.argv.includes('--loop')
-
   if (loop) {
-    console.log('Running in continuous mode...')
     setInterval(runMarketMaker, 10000)
     runMarketMaker()
   } else {
-    runMarketMaker()
-      .then(() => process.exit(0))
-      .catch((e) => {
-        console.error(e)
-        process.exit(1)
-      })
+    runMarketMaker().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })
   }
 }
