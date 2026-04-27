@@ -248,7 +248,7 @@ function MyPredictionPositions({ orders, onCancelOrder }: { orders: LimitOrder[]
                         <div className="flex items-center gap-2">
                           <span className={`font-bold ${o.side === 'YES' ? 'text-emerald-600' : 'text-red-600'}`}>{o.side}</span>
                           <span className="font-medium">{o.market.title}</span>
-                          <span className="text-muted-foreground">{o.quantity} @ {(Number(o.limitPrice) * 100).toFixed(1)}&cent;</span>
+                          <span className="text-muted-foreground">{o.quantity} @ {((o.side === 'YES' ? Number(o.limitPrice) : 1 - Number(o.limitPrice)) * 100).toFixed(1)}&cent;</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">OPEN</span>
@@ -296,6 +296,7 @@ interface Market {
 export default function OrderBookPage() {
   const [markets, setMarkets] = useState<Market[]>([])
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
+  const [marketMode, setMarketMode] = useState<'YES' | 'NO'>('YES')
   const [loading, setLoading] = useState(true)
   const { user } = usePaperTradingAuth()
   const { orderBook, loading: obLoading, refetch: refetchOrderBook } = useOrderBook(selectedMarket?.id ?? "")
@@ -438,16 +439,34 @@ export default function OrderBookPage() {
       {/* Selected market: order book + trading */}
       {selectedMarket && selectedMarket.status === "OPEN" && (
         <>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Trade</span>
+            <div className="flex bg-muted/30 p-1 rounded-lg w-fit">
+              <button
+                onClick={() => setMarketMode('YES')}
+                className={`px-8 py-2 rounded-md font-bold text-sm transition-colors ${marketMode === 'YES' ? 'bg-emerald-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                YES
+              </button>
+              <button
+                onClick={() => setMarketMode('NO')}
+                className={`px-8 py-2 rounded-md font-bold text-sm transition-colors ${marketMode === 'NO' ? 'bg-red-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                NO
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
             <div className="lg:col-span-2">
-              <OrderBook orderBook={orderBook} loading={obLoading} />
+              <OrderBook orderBook={orderBook} loading={obLoading} mode={marketMode} />
             </div>
             <div className="space-y-4">
               <LimitOrderForm 
                 marketId={selectedMarket.id} 
                 onOrderPlaced={refetchAll} 
-                bestYesAsk={orderBook?.noBids?.length ? Math.min(...orderBook.noBids.map(b => b.price)) : null}
-                bestNoAsk={orderBook?.yesBids?.length ? Math.min(...orderBook.yesBids.map(b => 1 - b.price)) : null}
+                orderBook={orderBook}
+                mode={marketMode}
               />
               {user && user.id === selectedMarket.creatorId && (
                 <ResolveMarket marketId={selectedMarket.id} onResolved={() => { fetchMarkets(); refetchAll() }} />
