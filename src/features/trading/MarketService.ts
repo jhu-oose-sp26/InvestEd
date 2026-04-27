@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import type { PrismaClient } from '@prisma/client'
-import { Decimal } from '@prisma/client/runtime/library'
 import { z } from 'zod'
 import type { CreateMarketInput, MarketResult } from '@/types'
+import { computeOrderReservation } from './orderPricing'
 
 type Tx = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
 
@@ -43,9 +43,7 @@ export class MarketService {
         // Cancel all remaining open orders and refund reserved cash to portfolio
         const openOrders = await tx.limitOrder.findMany({ where: { marketId, status: 'OPEN' } })
         for (const order of openOrders) {
-          const refund = order.side === 'NO'
-            ? new Decimal(1).minus(order.limitPrice).times(order.quantity)
-            : new Decimal(order.limitPrice).times(order.quantity)
+          const refund = computeOrderReservation(order.side, order.limitPrice, order.quantity)
           const portfolio = await tx.portfolio.findFirstOrThrow({ where: { userId: order.userId } })
           await tx.portfolio.update({ where: { id: portfolio.id }, data: { cashBalance: { increment: refund } } })
           await tx.limitOrder.update({ where: { id: order.id }, data: { status: 'CANCELLED' } })
