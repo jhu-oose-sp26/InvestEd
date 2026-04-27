@@ -87,7 +87,7 @@ export async function runMarketMaker() {
   for (const market of openMarkets) {
     try {
       console.log(`\nProcessing market: ${market.id} - ${market.title}`)
-
+      
       // 1. Cancel existing bot orders to get clean state of user orders
       const existingOrders = await prisma.limitOrder.findMany({
         where: { userId: bot.id, marketId: market.id, status: 'OPEN' }
@@ -99,8 +99,8 @@ export async function runMarketMaker() {
 
       // 2. Fetch user order book
       const userOrders = await prisma.limitOrder.findMany({
-        where: {
-          marketId: market.id,
+        where: { 
+          marketId: market.id, 
           status: 'OPEN',
           userId: { not: bot.id }
         }
