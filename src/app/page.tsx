@@ -13,12 +13,18 @@ export default function Home() {
         <p className="text-center text-lg mb-8 text-muted-foreground">
           Mock Trading Experience For JHU Students
         </p>
-        <div className="mb-8 flex justify-center">
+        <div className="mb-8 flex flex-col gap-4 justify-center items-center">
           <Link
             href="/auth/login"
-            className="px-6 py-3 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+            className="px-8 py-3 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors text-center w-[250px]"
           >
             Get Started
+          </Link>
+          <Link
+            href="/trade"
+            className="px-8 py-3 bg-secondary text-secondary-foreground border border-border rounded-md hover:bg-secondary/80 transition-colors text-center w-[250px]"
+          >
+            Proceed without Login
           </Link>
         </div>
         <LandingMarketTicker />
