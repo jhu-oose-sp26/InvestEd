@@ -5,7 +5,7 @@
 
 [![Issues][issues-shield]][issues-url]
 
-<!-- PROJECT LOGO -->
+<!-- PROJECT LOGO --> 
 <br />
 <div align="center">
   <a href="https://github.com/jhu-oose-sp26/InvestEd">
