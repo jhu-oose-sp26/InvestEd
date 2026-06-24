@@ -183,7 +183,13 @@ The bot is written in TypeScript and can be executed using `tsx` (which is alrea
 To run the bot through a single cycle where it assesses all markets, places new quotes, and then exits:
 ```bash
 npx tsx bots/amm.ts
+```
 
+##### Continuous Execution (Loop)
+To run the bot persistently so it acts as an automated market maker (running every 10 seconds):
+```bash
+node run-bot.js --loop
+```
 
 ### Error codes (JSON)
 
