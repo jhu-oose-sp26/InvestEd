@@ -20,17 +20,12 @@ export class OrderBookService {
     const toEntries = (map: Map<string, number>): OrderBookEntry[] =>
       Array.from(map, ([price, quantity]) => ({ price: parseFloat(price), quantity }))
 
-    const lastFill = await prisma.limitOrder.findFirst({
-      where: { marketId, status: 'FILLED' },
-      orderBy: { filledAt: 'desc' },
-      select: { limitPrice: true }
-    })
 
     return {
       marketId,
       yesBids: toEntries(yesMap).sort((a, b) => b.price - a.price),
       noBids: toEntries(noMap).sort((a, b) => a.price - b.price),
-      lastPrice: lastFill ? Number(lastFill.limitPrice) : null
+      
     }
   }
 }

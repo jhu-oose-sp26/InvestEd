@@ -5,7 +5,7 @@
 
 [![Issues][issues-shield]][issues-url]
 
-<!-- PROJECT LOGO -->
+<!-- PROJECT LOGO --> 
 <br />
 <div align="center">
   <a href="https://github.com/jhu-oose-sp26/InvestEd">
@@ -177,7 +177,7 @@ The AMM Bot ensures that all open prediction markets have consistent liquidity a
 
 #### How to Start the Bot
 
-The bot is written in TypeScript and can be executed using `tsx` (which is already configured in your project).
+The bot is written in TypeScript and can be executed using `tsx` .
 
 ##### Single Execution (One-time Pass)
 To run the bot through a single cycle where it assesses all markets, places new quotes, and then exits:
