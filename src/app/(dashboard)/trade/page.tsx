@@ -6,13 +6,35 @@ import { TradeChart, HistoricalBar } from "@/components/ui/TradeChart"
 import { DATA_UNAVAILABLE, softenPublicErrorMessage } from "@/lib/userFacingMessages"
 import { UsMarketTradingHoursCollapsible } from "@/components/UsMarketTradingHoursCollapsible"
 
+/** Local-timezone YYYY-MM-DD (the user's "today"), not the UTC date from toISOString(). */
+function localDateString(d: Date = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+/** Regular US session close for the selected day, used to detect a finished trading day. */
+function marketCloseFor(dateStr: string): Date {
+  return new Date(`${dateStr}T16:00:00`)
+}
+
+/**
+ * True only while the selected day's regular session is still in progress today.
+ * A past date — or today once 16:00 has passed — is a completed day whose data is
+ * fully available, so it should render as history (no live candle, full session range).
+ */
+function isLiveSession(dateStr: string, now: Date = new Date()): boolean {
+  return dateStr === localDateString(now) && now < marketCloseFor(dateStr)
+}
+
 export default function TradePage() {
   const [symbol, setSymbol] = useState("")
   const [symbolToLookup, setSymbolToLookup] = useState("")
   const [quantity, setQuantity] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
+  const [selectedDate, setSelectedDate] = useState<string>(localDateString())
 
   const [historicalBars, setHistoricalBars] = useState<HistoricalBar[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -32,18 +54,15 @@ export default function TradePage() {
       setHistoryLoading(true)
       setHistoryMessage(null)
       try {
-        const isToday = selectedDate === new Date().toISOString().split("T")[0]
-        let start: Date
-        let end: Date
-        if (isToday) {
-          end = new Date()
-          start = new Date(`${selectedDate}T09:30:00`)
-        } else {
-          // If a past date is selected, assume market close at 16:00 local/ET
-          end = new Date(`${selectedDate}T16:00:00`)
-          // Market open at 09:30 local/ET
-          start = new Date(`${selectedDate}T09:30:00`)
-        }
+        // Market open at 09:30 local/ET
+        const start = new Date(`${selectedDate}T09:30:00`)
+        // A past date — or today once the regular session has closed (past trading
+        // hours) — is a completed trading day whose data is fully available. Request
+        // the full session through the 16:00 close and render it as a historical day,
+        // rather than ending at "now" (which yields an empty/invalid after-hours range).
+        const end = isLiveSession(selectedDate)
+          ? new Date()
+          : marketCloseFor(selectedDate)
 
         const res = await fetch(
           `/api/bars?symbol=${encodeURIComponent(symbolToLookup)}&start=${start.toISOString()}&end=${end.toISOString()}`
@@ -160,7 +179,7 @@ export default function TradePage() {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full sm:max-w-xs px-4 py-2 border rounded-md"
-              max={new Date().toISOString().split("T")[0]}
+              max={localDateString()}
             />
           </div>
         </div>
@@ -218,7 +237,7 @@ export default function TradePage() {
               <TradeChart
                 symbol={symbolToLookup}
                 historicalBars={historicalBars}
-                livePrice={selectedDate === new Date().toISOString().split("T")[0] ? livePrice : null}
+                livePrice={isLiveSession(selectedDate) ? livePrice : null}
               />
             )}
 
