@@ -12,8 +12,8 @@
     <!-- <img src="[PATH_TO_LOGO_IMAGE]" alt="[LOGO_ALT_TEXT]" width="80" height="80"> -->
   </a>
 
-  <h3 align="center">InvestEd</h3>
-  <h4 align="center">Hopkins Quant Trading</h4>
+  <h2 align="center">InvestEd</h2>
+  <h5 align="center">Hopkins Quant Trading</h5>
 
   <p align="center">
     A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
