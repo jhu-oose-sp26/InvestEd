@@ -13,6 +13,7 @@
   </a>
 
   <h3 align="center">InvestEd</h3>
+  <h4 align="center">Hopkins Quant Trading</h4>
 
   <p align="center">
     A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
