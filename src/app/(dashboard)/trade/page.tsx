@@ -14,18 +14,42 @@ function localDateString(d: Date = new Date()): string {
   return `${y}-${m}-${day}`
 }
 
-/** Regular US session close for the selected day, used to detect a finished trading day. */
-function marketCloseFor(dateStr: string): Date {
+/** Regular US session bounds (local time) for the given day. */
+function sessionOpen(dateStr: string): Date {
+  return new Date(`${dateStr}T09:30:00`)
+}
+function sessionClose(dateStr: string): Date {
   return new Date(`${dateStr}T16:00:00`)
 }
 
 /**
- * True only while the selected day's regular session is still in progress today.
- * A past date — or today once 16:00 has passed — is a completed day whose data is
- * fully available, so it should render as history (no live candle, full session range).
+ * The session is "live" only while *now* falls inside today's regular session
+ * (09:30–16:00). Outside that window — past trading hours in the evening, the
+ * early hours before the open, weekends, or any past date — the day's data is
+ * complete and should render as a finished historical session (no live candle).
  */
 function isLiveSession(dateStr: string, now: Date = new Date()): boolean {
-  return dateStr === localDateString(now) && now < marketCloseFor(dateStr)
+  if (dateStr !== localDateString(now)) return false
+  return now >= sessionOpen(dateStr) && now < sessionClose(dateStr)
+}
+
+/**
+ * The most recent trading day that actually has data: today once its session has
+ * opened, otherwise the previous weekday. This keeps the chart on a real, finished
+ * session when the page is opened late at night or before the bell, instead of
+ * requesting an empty/not-yet-started "today" (which errors as an invalid range).
+ */
+function mostRecentTradingDate(now: Date = new Date()): string {
+  const d = new Date(now)
+  // Before today's open there is no data for today yet — step back a day.
+  if (now < sessionOpen(localDateString(now))) {
+    d.setDate(d.getDate() - 1)
+  }
+  // Skip weekends (markets closed). Holidays are not modeled.
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() - 1)
+  }
+  return localDateString(d)
 }
 
 export default function TradePage() {
@@ -34,7 +58,7 @@ export default function TradePage() {
   const [quantity, setQuantity] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>(localDateString())
+  const [selectedDate, setSelectedDate] = useState<string>(mostRecentTradingDate())
 
   const [historicalBars, setHistoricalBars] = useState<HistoricalBar[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -54,15 +78,14 @@ export default function TradePage() {
       setHistoryLoading(true)
       setHistoryMessage(null)
       try {
-        // Market open at 09:30 local/ET
-        const start = new Date(`${selectedDate}T09:30:00`)
-        // A past date — or today once the regular session has closed (past trading
-        // hours) — is a completed trading day whose data is fully available. Request
-        // the full session through the 16:00 close and render it as a historical day,
-        // rather than ending at "now" (which yields an empty/invalid after-hours range).
+        // Market open at 09:30 local/ET.
+        const start = sessionOpen(selectedDate)
+        // While the session is live, fetch up to now; otherwise (past trading hours,
+        // before the open, weekends, or a past date) the day is complete, so request
+        // the full session through the 16:00 close and render it as a historical day.
         const end = isLiveSession(selectedDate)
           ? new Date()
-          : marketCloseFor(selectedDate)
+          : sessionClose(selectedDate)
 
         const res = await fetch(
           `/api/bars?symbol=${encodeURIComponent(symbolToLookup)}&start=${start.toISOString()}&end=${end.toISOString()}`

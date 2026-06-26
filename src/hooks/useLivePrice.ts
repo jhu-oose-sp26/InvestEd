@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { softenPublicErrorMessage } from '@/lib/userFacingMessages'
+import { DATA_UNAVAILABLE, softenPublicErrorMessage } from '@/lib/userFacingMessages'
 
 /** Single-symbol live quote from GET /api/live-quote. Use for trade form, ticker header, single-asset charts. */
 export interface LiveQuoteState {
@@ -95,11 +95,33 @@ export function useLivePrice(symbol: string, pollIntervalMs: number = 5000): Liv
         }
         return
       }
-      setPrice(data.price)
-      setTimestamp(data.timestamp ?? null)
-      setError(null)
-      if (typeof data?.price === 'number') {
-        writeCachedQuote(sym, { price: data.price, timestamp: data.timestamp ?? null })
+      // Finnhub returns c:0 (HTTP 200) for closed/unsupported/invalid symbols.
+      // A real share price is never 0, so treat a non-positive value as "no price":
+      // keep the last good (cached) value visible instead of flashing "$0.00", and
+      // never cache the bogus 0.
+      const validPrice =
+        typeof data?.price === 'number' && Number.isFinite(data.price) && data.price > 0
+          ? data.price
+          : null
+      if (validPrice != null) {
+        setPrice(validPrice)
+        setTimestamp(data.timestamp ?? null)
+        setError(null)
+        writeCachedQuote(sym, { price: validPrice, timestamp: data.timestamp ?? null })
+      } else {
+        const cached = readCachedQuote(sym)
+        if (cached) {
+          // Show the last known good price, flagged stale via a non-null error.
+          setPrice(cached.price)
+          setTimestamp(cached.timestamp)
+          setError(DATA_UNAVAILABLE.livePriceStale)
+        } else {
+          // Nothing usable to show — let the page render its "no live price" notice
+          // rather than a misleading $0.00.
+          setPrice(null)
+          setTimestamp(null)
+          setError(null)
+        }
       }
     } catch (e) {
       setError(
