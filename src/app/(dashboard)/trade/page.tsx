@@ -6,13 +6,59 @@ import { TradeChart, HistoricalBar } from "@/components/ui/TradeChart"
 import { DATA_UNAVAILABLE, softenPublicErrorMessage } from "@/lib/userFacingMessages"
 import { UsMarketTradingHoursCollapsible } from "@/components/UsMarketTradingHoursCollapsible"
 
+/** Local-timezone YYYY-MM-DD (the user's "today"), not the UTC date from toISOString(). */
+function localDateString(d: Date = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+/** Regular US session bounds (local time) for the given day. */
+function sessionOpen(dateStr: string): Date {
+  return new Date(`${dateStr}T09:30:00`)
+}
+function sessionClose(dateStr: string): Date {
+  return new Date(`${dateStr}T16:00:00`)
+}
+
+/**
+ * The session is "live" only while *now* falls inside today's regular session
+ * (09:30–16:00). Outside that window — past trading hours in the evening, the
+ * early hours before the open, weekends, or any past date — the day's data is
+ * complete and should render as a finished historical session (no live candle).
+ */
+function isLiveSession(dateStr: string, now: Date = new Date()): boolean {
+  if (dateStr !== localDateString(now)) return false
+  return now >= sessionOpen(dateStr) && now < sessionClose(dateStr)
+}
+
+/**
+ * The most recent trading day that actually has data: today once its session has
+ * opened, otherwise the previous weekday. This keeps the chart on a real, finished
+ * session when the page is opened late at night or before the bell, instead of
+ * requesting an empty/not-yet-started "today" (which errors as an invalid range).
+ */
+function mostRecentTradingDate(now: Date = new Date()): string {
+  const d = new Date(now)
+  // Before today's open there is no data for today yet — step back a day.
+  if (now < sessionOpen(localDateString(now))) {
+    d.setDate(d.getDate() - 1)
+  }
+  // Skip weekends (markets closed). Holidays are not modeled.
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() - 1)
+  }
+  return localDateString(d)
+}
+
 export default function TradePage() {
   const [symbol, setSymbol] = useState("")
   const [symbolToLookup, setSymbolToLookup] = useState("")
   const [quantity, setQuantity] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0])
+  const [selectedDate, setSelectedDate] = useState<string>(mostRecentTradingDate())
 
   const [historicalBars, setHistoricalBars] = useState<HistoricalBar[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -32,18 +78,14 @@ export default function TradePage() {
       setHistoryLoading(true)
       setHistoryMessage(null)
       try {
-        const isToday = selectedDate === new Date().toISOString().split("T")[0]
-        let start: Date
-        let end: Date
-        if (isToday) {
-          end = new Date()
-          start = new Date(`${selectedDate}T09:30:00`)
-        } else {
-          // If a past date is selected, assume market close at 16:00 local/ET
-          end = new Date(`${selectedDate}T16:00:00`)
-          // Market open at 09:30 local/ET
-          start = new Date(`${selectedDate}T09:30:00`)
-        }
+        // Market open at 09:30 local/ET.
+        const start = sessionOpen(selectedDate)
+        // While the session is live, fetch up to now; otherwise (past trading hours,
+        // before the open, weekends, or a past date) the day is complete, so request
+        // the full session through the 16:00 close and render it as a historical day.
+        const end = isLiveSession(selectedDate)
+          ? new Date()
+          : sessionClose(selectedDate)
 
         const res = await fetch(
           `/api/bars?symbol=${encodeURIComponent(symbolToLookup)}&start=${start.toISOString()}&end=${end.toISOString()}`
@@ -160,7 +202,7 @@ export default function TradePage() {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full sm:max-w-xs px-4 py-2 border rounded-md"
-              max={new Date().toISOString().split("T")[0]}
+              max={localDateString()}
             />
           </div>
         </div>
@@ -218,7 +260,7 @@ export default function TradePage() {
               <TradeChart
                 symbol={symbolToLookup}
                 historicalBars={historicalBars}
-                livePrice={selectedDate === new Date().toISOString().split("T")[0] ? livePrice : null}
+                livePrice={isLiveSession(selectedDate) ? livePrice : null}
               />
             )}
 
