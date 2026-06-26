@@ -2,6 +2,7 @@
 
 import type { LiveQuoteItem } from "@/hooks/useLiveQuotes"
 import { softenPublicErrorMessage } from "@/lib/userFacingMessages"
+import { setStripPrice } from "@/lib/livePriceCache"
 
 type StreamHandler = {
   onData: (quotes: LiveQuoteItem[]) => void
@@ -18,6 +19,9 @@ const lastQuotesByStreamKey = new Map<string, LiveQuoteItem[]>()
 
 function broadcastData(quotes: LiveQuoteItem[]) {
   if (activeKey) lastQuotesByStreamKey.set(activeKey, quotes)
+  for (const q of quotes) {
+    if (q.price > 0) setStripPrice(q.symbol, q.price, q.timestamp)
+  }
   for (const h of handlers) h.onData(quotes)
 }
 

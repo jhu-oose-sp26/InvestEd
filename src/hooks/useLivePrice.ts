@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { DATA_UNAVAILABLE, softenPublicErrorMessage } from '@/lib/userFacingMessages'
+import { getStripPrice } from '@/lib/livePriceCache'
 
 /** Single-symbol live quote from GET /api/live-quote. Use for trade form, ticker header, single-asset charts. */
 export interface LiveQuoteState {
@@ -85,9 +86,10 @@ export function useLivePrice(symbol: string, pollIntervalMs: number = 5000): Liv
           setPrice(null)
           setTimestamp(null)
         } else {
-          // Rate limited (503) or other transient failure: fall back to the cached
-          // quote so the current price stays on screen instead of disappearing.
-          const cached = readCachedQuote(sym)
+          // Rate limited (503) or other transient failure: fall back to the strip
+          // cache (fresher) or localStorage cache so the price stays visible.
+          const strip = getStripPrice(sym)
+          const cached = strip ? { price: strip.price, timestamp: strip.ts } : readCachedQuote(sym)
           if (cached) {
             setPrice((prev) => (prev == null ? cached.price : prev))
             setTimestamp((prev) => (prev == null ? cached.timestamp : prev))
@@ -109,7 +111,8 @@ export function useLivePrice(symbol: string, pollIntervalMs: number = 5000): Liv
         setError(null)
         writeCachedQuote(sym, { price: validPrice, timestamp: data.timestamp ?? null })
       } else {
-        const cached = readCachedQuote(sym)
+        const strip = getStripPrice(sym)
+        const cached = strip ? { price: strip.price, timestamp: strip.ts } : readCachedQuote(sym)
         if (cached) {
           // Show the last known good price, flagged stale via a non-null error.
           setPrice(cached.price)
@@ -129,9 +132,10 @@ export function useLivePrice(symbol: string, pollIntervalMs: number = 5000): Liv
           'We could not load that price. Check your connection and try again. (IE_CLT_002)',
         ),
       )
-      // Keep last price on network/transient errors so the UI doesn’t go blank;
-      // if we have nothing yet, fall back to the cached quote.
-      const cached = readCachedQuote(sym)
+      // Keep last price on network/transient errors so the UI doesn't go blank;
+      // if we have nothing yet, fall back to the strip or localStorage cache.
+      const strip = getStripPrice(sym)
+      const cached = strip ? { price: strip.price, timestamp: strip.ts } : readCachedQuote(sym)
       if (cached) {
         setPrice((prev) => (prev == null ? cached.price : prev))
         setTimestamp((prev) => (prev == null ? cached.timestamp : prev))
@@ -149,9 +153,11 @@ export function useLivePrice(symbol: string, pollIntervalMs: number = 5000): Liv
       setError(null)
       return
     }
-    // Seed from cache immediately so a fresh lookup shows the last known price
-    // right away (and survives a first request that is rate limited).
-    const cached = readCachedQuote(sym)
+    // Seed from strip cache (freshest, already streaming in the top bar) or
+    // localStorage so a fresh lookup shows the last known price right away
+    // (and survives a first request that is rate limited).
+    const strip = getStripPrice(sym)
+    const cached = strip ? { price: strip.price, timestamp: strip.ts } : readCachedQuote(sym)
     if (cached) {
       setPrice(cached.price)
       setTimestamp(cached.timestamp)

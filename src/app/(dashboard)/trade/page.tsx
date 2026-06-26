@@ -6,7 +6,7 @@ import { TradeChart, HistoricalBar } from "@/components/ui/TradeChart"
 import { DATA_UNAVAILABLE, softenPublicErrorMessage } from "@/lib/userFacingMessages"
 import { UsMarketTradingHoursCollapsible } from "@/components/UsMarketTradingHoursCollapsible"
 
-/** Local-timezone YYYY-MM-DD (the user's "today"), not the UTC date from toISOString(). */
+/** Local-timezone YYYY-MM-DD (the user's "today"), used only for the date-picker max. */
 function localDateString(d: Date = new Date()): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
@@ -14,42 +14,117 @@ function localDateString(d: Date = new Date()): string {
   return `${y}-${m}-${day}`
 }
 
-/** Regular US session bounds (local time) for the given day. */
-function sessionOpen(dateStr: string): Date {
-  return new Date(`${dateStr}T09:30:00`)
+/* ── Eastern-Time helpers ───────────────────────────────────────────────
+ * US exchanges operate on America/New_York time (EST/EDT). All session
+ * boundary logic must use ET regardless of the user's local timezone so
+ * that the chart range sent to /api/bars is always valid.
+ * ──────────────────────────────────────────────────────────────────────*/
+
+const ET_TZ = "America/New_York"
+
+/** YYYY-MM-DD in Eastern Time (handles EST ↔ EDT automatically). */
+function etDateString(d: Date = new Date()): string {
+  // 'en-CA' locale formats dates as YYYY-MM-DD
+  return d.toLocaleDateString("en-CA", { timeZone: ET_TZ })
 }
-function sessionClose(dateStr: string): Date {
-  return new Date(`${dateStr}T16:00:00`)
+
+/**
+ * Extract the ET wall-clock components for a given instant so we can
+ * compare hours/minutes against session boundaries.
+ */
+function etParts(d: Date = new Date()) {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: ET_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+  const parts = fmt.formatToParts(d)
+  const get = (t: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === t)?.value ?? 0)
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour") === 24 ? 0 : get("hour"), // midnight edge
+    minute: get("minute"),
+    second: get("second"),
+  }
+}
+
+/**
+ * Build a UTC Date for a given ET wall-clock time on a specific calendar day.
+ * E.g. `etWallClockToUTC("2026-06-25", 9, 30)` → the UTC instant when it is
+ * 09:30 in New York on June 25.
+ *
+ * Strategy: construct a rough UTC guess, read back what ET says it is,
+ * compute the offset, and adjust.
+ */
+function etWallClockToUTC(dateStr: string, hours: number, minutes: number): Date {
+  const [y, m, day] = dateStr.split("-").map(Number)
+  // Rough guess: assume ET ≈ UTC-5 (close enough to land on the right calendar day)
+  const guess = new Date(Date.UTC(y, m - 1, day, hours + 5, minutes))
+  // What ET wall-clock does this guess correspond to?
+  const p = etParts(guess)
+  // ET wall-clock of the guess
+  const guessETMs = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second)
+  // Desired ET wall-clock
+  const targetETMs = Date.UTC(y, m - 1, day, hours, minutes, 0)
+  // Adjust: shift guess by the difference between target and actual ET
+  return new Date(guess.getTime() + (targetETMs - guessETMs))
+}
+
+/** 09:30 ET on the given YYYY-MM-DD, returned as a UTC Date. */
+function sessionOpenUTC(dateStr: string): Date {
+  return etWallClockToUTC(dateStr, 9, 30)
+}
+/** 16:00 ET on the given YYYY-MM-DD, returned as a UTC Date. */
+function sessionCloseUTC(dateStr: string): Date {
+  return etWallClockToUTC(dateStr, 16, 0)
 }
 
 /**
  * The session is "live" only while *now* falls inside today's regular session
- * (09:30–16:00). Outside that window — past trading hours in the evening, the
- * early hours before the open, weekends, or any past date — the day's data is
- * complete and should render as a finished historical session (no live candle).
+ * (09:30–16:00 ET). Outside that window — past trading hours, before the open,
+ * weekends, or any past date — the day's data is complete and should render as
+ * a finished historical session (no live candle).
  */
 function isLiveSession(dateStr: string, now: Date = new Date()): boolean {
-  if (dateStr !== localDateString(now)) return false
-  return now >= sessionOpen(dateStr) && now < sessionClose(dateStr)
+  if (dateStr !== etDateString(now)) return false
+  const p = etParts(now)
+  const etMinutes = p.hour * 60 + p.minute
+  return etMinutes >= 9 * 60 + 30 && etMinutes < 16 * 60
 }
 
 /**
- * The most recent trading day that actually has data: today once its session has
- * opened, otherwise the previous weekday. This keeps the chart on a real, finished
- * session when the page is opened late at night or before the bell, instead of
- * requesting an empty/not-yet-started "today" (which errors as an invalid range).
+ * The most recent trading day that actually has data: today (ET) once its
+ * session has opened, otherwise the previous weekday. This keeps the chart on
+ * a real, finished session when the page is opened late at night or before the
+ * bell, instead of requesting an empty/not-yet-started "today".
  */
 function mostRecentTradingDate(now: Date = new Date()): string {
-  const d = new Date(now)
-  // Before today's open there is no data for today yet — step back a day.
-  if (now < sessionOpen(localDateString(now))) {
+  const p = etParts(now)
+  const etMinutes = p.hour * 60 + p.minute
+
+  // If we haven't reached 09:30 ET today, step back a day.
+  let d = new Date(now)
+  if (etMinutes < 9 * 60 + 30) {
     d.setDate(d.getDate() - 1)
   }
+  // Recalculate in ET after the potential shift
+  let candidate = etDateString(d)
+  // Parse that candidate into a Date to check day-of-week
+  let cd = new Date(candidate + "T12:00:00Z") // noon UTC, safe for day-of-week
   // Skip weekends (markets closed). Holidays are not modeled.
-  while (d.getDay() === 0 || d.getDay() === 6) {
-    d.setDate(d.getDate() - 1)
+  while (cd.getUTCDay() === 0 || cd.getUTCDay() === 6) {
+    cd.setUTCDate(cd.getUTCDate() - 1)
+    candidate = cd.toISOString().slice(0, 10)
   }
-  return localDateString(d)
+  return candidate
 }
 
 export default function TradePage() {
@@ -78,14 +153,14 @@ export default function TradePage() {
       setHistoryLoading(true)
       setHistoryMessage(null)
       try {
-        // Market open at 09:30 local/ET.
-        const start = sessionOpen(selectedDate)
+        // Market open at 09:30 ET (proper UTC instant via etWallClockToUTC).
+        const start = sessionOpenUTC(selectedDate)
         // While the session is live, fetch up to now; otherwise (past trading hours,
         // before the open, weekends, or a past date) the day is complete, so request
-        // the full session through the 16:00 close and render it as a historical day.
+        // the full session through the 16:00 ET close and render it as a historical day.
         const end = isLiveSession(selectedDate)
           ? new Date()
-          : sessionClose(selectedDate)
+          : sessionCloseUTC(selectedDate)
 
         const res = await fetch(
           `/api/bars?symbol=${encodeURIComponent(symbolToLookup)}&start=${start.toISOString()}&end=${end.toISOString()}`
@@ -221,11 +296,6 @@ export default function TradePage() {
                 {livePrice != null && (
                   <span className="text-foreground">
                     Live Price: <span className="font-bold text-lg">${livePrice.toFixed(2)}</span>
-                  </span>
-                )}
-                {livePrice != null && livePriceError && (
-                  <span className="block text-amber-700 text-xs font-normal mt-1 max-w-xl">
-                    {DATA_UNAVAILABLE.livePriceStale}
                   </span>
                 )}
                 {!livePriceLoading && livePrice == null && livePriceError && (
