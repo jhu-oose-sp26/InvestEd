@@ -58,9 +58,7 @@
 A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
 
-
-https://github.com/user-attachments/assets/541f595d-8c6e-4d43-9a36-1145e87c0800
-
+https://github.com/user-attachments/assets/47618889-36e9-402d-9d62-51d3f2a8bb18
 
 
 <p align="center"><em>▶ Click the image to watch the 48-second launch video.</em></p>
