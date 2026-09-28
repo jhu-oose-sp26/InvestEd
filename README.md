@@ -57,7 +57,13 @@
 ## About The Project
 A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
-## Live Demo: [InvestEd](https://invested-ivory.vercel.app/)
+
+https://github.com/user-attachments/assets/47618889-36e9-402d-9d62-51d3f2a8bb18
+
+
+<p align="center"><em>▶ Click the image to watch the 48-second launch video.</em></p>
+
+## Live Demo: [InvestEd](https://tryinvested.com/)
 
 ## Tech Stack
 
