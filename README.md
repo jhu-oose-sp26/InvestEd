@@ -57,7 +57,11 @@
 ## About The Project
 A scalable mock trading platform for JHU students to practice trading skills in a risk-free environment.
 
-[![Watch the InvestEd launch video](docs/media/invested-launch.jpg)](docs/media/invested-launch.mp4)
+
+
+https://github.com/user-attachments/assets/541f595d-8c6e-4d43-9a36-1145e87c0800
+
+
 
 <p align="center"><em>▶ Click the image to watch the 48-second launch video.</em></p>
 
