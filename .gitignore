@@ -46,3 +46,4 @@ next-env.d.ts
 # generated matchup data
 /mag7_fmp_financials/
 /market_data_pipeline/yfinance_daily/
+/brag-output
